@@ -63,8 +63,8 @@ Full CHEESE training, model inference, vLLM serving and large-scale evaluation r
 Create a clean Python environment and install the minimal dependencies:
 
 ```bash
-python -m venv.venv
-source.venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
