@@ -15,7 +15,7 @@ SERVICES=(
   "medrag-translate|MEDRAG_TRANSLATE_BASE_URL|http://localhost:8888|/health|MEDRAG_TRANSLATE_START_COMMAND|"
   "medrag|MEDRAG_BASE_URL|http://localhost:8000|/health|MEDRAG_START_COMMAND|"
   "pmc-patients|PMC_PATIENTS_URL|http://localhost:9001|/health|PMC_PATIENTS_START_COMMAND|"
-  "fathom-search|FATHOM_SANDBOX_URL|http://localhost:8904|/health|FATHOM_SEARCH_START_COMMAND|"
+  "fathom-search|FATHOM_SANDBOX_URL|http://localhost:8904|/docs|FATHOM_SEARCH_START_COMMAND|"
   "qwen3-vllm|OPENAI_BASE_URL|http://localhost:8080/v1|/models|VLLM_START_COMMAND|"
 )
 

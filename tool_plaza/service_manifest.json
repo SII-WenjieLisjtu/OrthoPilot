@@ -59,7 +59,7 @@
       "name": "fathom-search",
       "role": "Optional web-search sandbox endpoint",
       "default_url": "http://localhost:8904",
-      "health_path": "/health",
+      "health_path": "/docs",
       "env": "FATHOM_SANDBOX_URL",
       "tool_config": "tool_plaza/tool_configs/tool-web-search.yaml",
       "public_start": "Set FATHOM_SEARCH_START_COMMAND to a local non-public service command if you have one."
