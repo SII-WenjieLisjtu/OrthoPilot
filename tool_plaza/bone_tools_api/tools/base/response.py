@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class ToolResponse:
-    """工具执行响应"""
+    """"""
 
     tool: str
     args: dict[str, Any]
@@ -28,7 +28,7 @@ class ToolResponse:
         return result
 
     def to_xml_string(self) -> str:
-        """返回XML格式字符串供模型使用"""
+        """XMLmodel"""
         import json
         return f"<tool_response>{json.dumps(self.to_dict(), ensure_ascii=False)}</tool_response>"
 

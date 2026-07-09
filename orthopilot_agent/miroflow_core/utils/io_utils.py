@@ -5,7 +5,7 @@
 import os
 import re
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
@@ -14,9 +14,9 @@ logger = bootstrap_logger(level=LOGGER_LEVEL)
 
 def process_input(task_description, task_file_name):
     """
-    Process user input, especially files.
-    Returns formatted initial user message content list and updated task description.
-    """
+ Process user input, especially files.
+ Returns formatted initial user message content list and updated task description.
+ """
     initial_user_content = []
     updated_task_description = task_description
 
@@ -61,7 +61,7 @@ def process_input(task_description, task_file_name):
     # output format requiremnt
     # updated_task_description += "\nYou should follow the format instruction in the question strictly and wrap the final answer in \\boxed{}."
 
-    # Add text content (may have been updated)
+    # Add content (may have been updated)
     initial_user_content.append({"type": "text", "text": updated_task_description})
 
     return initial_user_content, updated_task_description
@@ -70,10 +70,10 @@ def process_input(task_description, task_file_name):
 class OutputFormatter:
     def _extract_boxed_content(self, text: str) -> str:
         """
-        Extract content from \\boxed{} patterns in the text.
-        Uses balanced brace counting to handle arbitrary levels of nested braces correctly.
-        Returns the last matched content, or empty string if no match found.
-        """
+ Extract content from \\boxed{} patterns in the.
+ Uses balanced brace counting to handle arbitrary levels of nested braces correctly.
+ Returns the last matched content, or empty string if no match found.
+ """
         if not text:
             return ""
 
@@ -119,9 +119,9 @@ class OutputFormatter:
 
     def format_tool_result_for_user(self, tool_call_execution_result):
         """
-        Format tool execution results to be fed back to LLM as user messages.
-        Only includes necessary information (results or errors).
-        """
+ Format tool execution results to be fed back to LLM as user messages.
+ Only includes necessary information (results or errors).
+ """
         server_name = tool_call_execution_result["server_name"]
         tool_name = tool_call_execution_result["tool_name"]
 

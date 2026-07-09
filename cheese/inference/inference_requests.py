@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-基于 requests 库的批量推理脚本
-参考 test.py 的调用方式，使用简单的 requests POST 请求
+ requests
+ test.py, requests POST
 """
 
 import os
@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-# ========================= 默认配置 =========================
+# ========================= default =========================
 DEFAULT_MODEL_NAME = "gpt-4"
 DEFAULT_MAX_WORKERS = 20
 DEFAULT_MAX_TOKENS = 2048
@@ -26,12 +26,12 @@ DEFAULT_MAX_RETRIES = 3
 
 
 def ensure_dir(p: str):
-    """确保目录存在"""
+    """Create a directory if it does not exist."""
     os.makedirs(p, exist_ok=True)
 
 
 def atomic_write_json(path: str, obj: Any, lock: threading.Lock):
-    """原子写入 JSON 文件（带锁保护）"""
+    """Atomically write a JSON file."""
     with lock:
         parent = os.path.dirname(path)
         if parent:
@@ -43,7 +43,7 @@ def atomic_write_json(path: str, obj: Any, lock: threading.Lock):
 
 
 def append_error_log(path: str, record: Dict[str, Any], lock: threading.Lock):
-    """追加错误日志（带锁保护）"""
+    """Append one error record to a JSONL file."""
     with lock:
         parent = os.path.dirname(path)
         if parent:
@@ -54,11 +54,11 @@ def append_error_log(path: str, record: Dict[str, Any], lock: threading.Lock):
 
 def load_input_items(input_path: str) -> List[Dict[str, Any]]:
     """
-    加载输入文件，支持：
-      - 单个 .json 文件（对象或对象列表）
-      - 单个 .jsonl 文件（每行一个对象）
-      - 目录（递归扫描 .json / .jsonl）
-    """
+ Load the input file:
+ - .json file
+ -.jsonl file()
+ - (.json /.jsonl)
+ """
     items = []
     paths: List[str] = []
 
@@ -97,7 +97,7 @@ def load_input_items(input_path: str) -> List[Dict[str, Any]]:
 
 
 def get_last_human_prompt(conversation_obj: Dict[str, Any]) -> Optional[str]:
-    """提取最后一条 human 消息作为 prompt"""
+    """ human prompt"""
     convs = conversation_obj.get("conversations", [])
     last_human = None
     for m in convs:
@@ -117,9 +117,9 @@ def call_api(
     timeout: int,
 ) -> str:
     """
-    使用 requests 调用 OpenAI 兼容 API
-    参考 test.py 的调用方式
-    """
+ requests OpenAI API
+ test.py
+ """
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"
@@ -148,10 +148,10 @@ def call_api(
     response.raise_for_status()
     result = response.json()
 
-    # 提取返回内容
+    # content
     content = result["choices"][0]["message"]["content"]
 
-    # 处理返回值：如果是字典且包含 text 字段，则提取 text；否则直接使用
+    #: yes,; no
     if isinstance(content, dict) and "text" in content:
         return content["text"]
     else:
@@ -169,7 +169,7 @@ def call_with_retry(
     timeout: int,
     max_retries: int,
 ) -> str:
-    """带重试的 API 调用"""
+    """ API """
     last_err = None
     for attempt in range(1, max_retries + 1):
         try:
@@ -181,7 +181,7 @@ def call_with_retry(
             last_err = e
             if attempt >= max_retries:
                 break
-            # 指数退避
+            #
             backoff = min(2 ** (attempt - 1), 60)
             time.sleep(backoff)
 
@@ -205,9 +205,9 @@ def process_one_item(
     err_lock: threading.Lock,
 ) -> str:
     """
-    处理单个样本，实时写入结果
-    返回: "ok"|"error"|"no_human"
-    """
+ sample, result
+: "ok"|"error"|"no_human"
+ """
     cid = item.get("id", "")
     prompt = get_last_human_prompt(item)
 
@@ -226,14 +226,14 @@ def process_one_item(
             temperature, top_p, max_tokens, timeout, max_retries
         )
 
-        # 组装新条目
+        #
         new_item = dict(item)
         new_item.setdefault("conversations", [])
         new_item["conversations"] = list(new_item["conversations"]) + [
             {"from": model_name, "value": answer}
         ]
 
-        # 实时写入：追加到列表并原子落盘
+        #:
         results_list.append(new_item)
         atomic_write_json(out_json_path, results_list, write_lock)
 
@@ -264,22 +264,22 @@ def process_batch(
     max_retries: int,
 ):
     """
-    批量处理样本，实时写入结果
-    """
-    print(f"\n========== 开始处理 input: {input_path} ==========")
-    print(f"输出文件: {out_json_path}")
+ sample, result
+ """
+    print(f"\n========== start processing input: {input_path} ==========")
+    print(f"output file: {out_json_path}")
     if err_log_path:
-        print(f"错误日志: {err_log_path}")
+        print(f"error log: {err_log_path}")
 
-    # 加载输入
+    # loadinput
     items = load_input_items(input_path)
-    print(f"[INFO] 加载了 {len(items)} 条样本")
+    print(f"[INFO] loaded {len(items)} samples")
 
     if not items:
-        print("[WARN] 没有找到可处理的样本")
+        print("[WARN] sample")
         return
 
-    # 加载已有结果（断点续跑）
+    # loadresult()
     processed_ids = set()
     results = []
 
@@ -292,12 +292,12 @@ def process_batch(
                     item_id = obj.get("id", "")
                     if item_id:
                         processed_ids.add(item_id)
-            print(f"[INFO] 断点续跑：已加载 {len(results)} 条历史结果")
+            print(f"[INFO] loaded {len(results)} existing results")
         except Exception as e:
-            print(f"[WARN] 读取已存在的输出文件失败，将重新开始：{e}")
+            print(f"[WARN] failed to read output file: {e}")
             results = []
 
-    # 过滤已处理的样本
+    # sample
     items_to_process = []
     for item in items:
         item_id = item.get("id", "")
@@ -307,19 +307,19 @@ def process_batch(
 
     skipped = len(items) - len(items_to_process)
     if skipped > 0:
-        print(f"[INFO] 跳过已处理样本 {skipped} 条")
+        print(f"[INFO] skipped {skipped} samples")
 
     if not items_to_process:
-        print("[INFO] 所有样本均已处理完成")
+        print("[INFO] sample")
         return
 
-    print(f"[INFO] 待处理样本数: {len(items_to_process)}")
+    print(f"[INFO] samples to process: {len(items_to_process)}")
 
-    # 创建锁
+    #
     write_lock = threading.Lock()
     err_lock = threading.Lock()
 
-    # 多线程处理，每个任务完成后立即写入
+    #, task
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(
@@ -335,82 +335,81 @@ def process_batch(
             for future in as_completed(futures):
                 try:
                     status = future.result()
-                    # 状态已经由 process_one_item 处理并写入
+                    # process_one_item
                 except Exception as e:
-                    print(f"\n[ERROR] 未预期的异常: {e}")
+                    print(f"\n[ERROR]: {e}")
                 finally:
                     pbar.update(1)
 
-    print(f"[DONE] 处理完成，共 {len(results)} 条结果")
+    print(f"[DONE] completed with {len(results)} results")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="基于 requests 的批量推理脚本（参考 test.py 调用方式）"
+        description=" requests (test.py)"
     )
 
-    # 单任务模式
+    # task
     parser.add_argument(
         "--input",
         required=False,
-        default="/path/to/orthopilot/gen_validation/test_final/test_subset/task6.json",
-        help="输入文件或目录"
+        default="data/task6.json",
+        help="input file"
     )
     parser.add_argument(
         "--out_json",
         required=False,
-        help="输出 JSON 文件路径"
+        help="output JSON filepath"
     )
     parser.add_argument(
         "--err_log",
         required=False,
-        help="错误日志 JSONL 路径"
+        help="error JSONL path"
     )
 
-    # 多任务模式
     parser.add_argument(
         "--tasks",
         type=str,
         default="",
-        help="任务编号，逗号分隔，例如: 1,2,3,4"
+        help="Comma-separated task IDs for batch mode, for example 1,2,3,4"
     )
     parser.add_argument(
         "--input-template",
         type=str,
-        default="/path/to/orthopilot/gen_validation/test_final/test_subset/task{task}.json",
-        help="输入文件模板，支持占位符 {task} 和 {model}"
+        default="data/task{task}.json",
+        help="Input path template for batch mode; supports {task} and {model}"
     )
     parser.add_argument(
         "--out-json-template",
         type=str,
-        default="/path/to/orthopilot/gen_validation/result/{model}_task{task}.json",
-        help="输出 JSON 模板"
+        default="outputs/{model}_task{task}.json",
+        help="output JSON "
     )
     parser.add_argument(
         "--err-log-template",
         type=str,
-        default="/path/to/orthopilot/gen_validation/result/{model}_task{task}_error.jsonl",
-        help="错误日志模板"
+        default="outputs/{model}_task{task}_error.jsonl",
+        help="error"
     )
 
-    # API 参数
+    # API
     parser.add_argument(
         "--url",
-        default="http://YOUR_HOST:YOUR_PORT",
-        help="API 端点 URL"
+        default="http://localhost:8000",
+        help="API URL"
     )
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL_NAME,
-        help="模型名称"
+        help="model"
     )
     parser.add_argument(
         "--api_key",
         default="",
-        help="API Key（也可使用环境变量 OPENAI_API_KEY）"
+        help="API Key(OPENAI_API_KEY)"
     )
 
-    # 推理参数
+    #
     parser.add_argument("--max_workers", type=int, default=DEFAULT_MAX_WORKERS)
     parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
     parser.add_argument("--top_p", type=float, default=DEFAULT_TOP_P)
@@ -420,13 +419,13 @@ def main():
 
     args = parser.parse_args()
 
-    # 获取 API Key
+    # API Key
     api_key = args.api_key or os.getenv("OPENAI_API_KEY", "")
     if not api_key:
-        print("[ERROR] 必须提供 API Key（通过 --api_key 或环境变量 OPENAI_API_KEY）")
+        print("[ERROR] API Key(--api_key OPENAI_API_KEY)")
         return
 
-    # 多任务模式
+    # task
     if args.tasks.strip():
         task_ids = []
         for x in args.tasks.split(","):
@@ -436,15 +435,15 @@ def main():
             try:
                 task_ids.append(int(x))
             except ValueError:
-                print(f"[WARN] 非法 task id: {x}，已忽略")
+                print(f"[WARN] task id: {x}, ")
 
         task_ids = sorted(set(task_ids))
 
         if not task_ids:
-            print("[ERROR] 任务列表为空")
+            print("[ERROR] taskis empty")
             return
 
-        print(f"[INFO] 将依次处理任务: {task_ids}")
+        print(f"[INFO] tasks: {task_ids}")
 
         for tid in task_ids:
             input_path = args.input_template.format(task=tid, model=args.model)
@@ -469,8 +468,8 @@ def main():
                 max_retries=args.max_retries,
             )
     else:
-        # 单任务模式
-        out_json = args.out_json or f"/path/to/orthopilot/gen_validation/result/{args.model}_result.json"
+        # task
+        out_json = args.out_json or f"outputs/{args.model}_result.json"
 
         process_batch(
             input_path=args.input,

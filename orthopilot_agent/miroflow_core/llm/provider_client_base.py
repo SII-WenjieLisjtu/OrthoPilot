@@ -16,8 +16,8 @@ from typing import (
 
 from omegaconf import DictConfig
 
-from src.logging.logger import bootstrap_logger
-from src.logging.task_tracer import TaskTracer
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.task_tracer import TaskTracer
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
 logger = bootstrap_logger(level=LOGGER_LEVEL)
@@ -51,7 +51,7 @@ class LLMProviderClientBase(ABC):
         self.reasoning_effort: str = self.cfg.llm.get("reasoning_effort", "medium")
         self.repetition_penalty: float = self.cfg.llm.get("repetition_penalty", 1.0)
         self.max_tokens: int = self.cfg.llm.max_tokens
-        self.max_context_length: int = self.cfg.llm.get("max_context_length", -1)
+        self.max_context_length: int = self.cfg.llm.get("max_con_length", -1)
         self.oai_tool_thinking: bool = self.cfg.llm.oai_tool_thinking
         self.async_client: bool = self.cfg.llm.async_client
 
@@ -185,8 +185,8 @@ class LLMProviderClientBase(ABC):
         agent_type: str = "main",
     ):
         """
-        Call LLM to generate response, supports tool calls - unified implementation
-        """
+ Call LLM to generate response, supports tool calls - unified implementation
+ """
         # Filter message history
         filtered_history = self._filter_message_history(
             message_history, keep_tool_result
@@ -367,7 +367,7 @@ class LLMProviderClientBase(ABC):
 
     def get_usage_log(self) -> str:
         """Get cumulative usage for current agent session as formatted string"""
-        # Format: [Provider | Model] Total Input: X, Cache Input: Y, Output: Z, ...
+        # Format: [Provider | Model] Total Input: X, Cache Input: Y, Output: Z,...
         provider_model = f"[{self.provider_class} | {self.model_name}]"
         input_uncached = self.total_input_tokens - self.total_input_cached_tokens
         output_response = self.total_output_tokens - self.total_output_reasoning_tokens

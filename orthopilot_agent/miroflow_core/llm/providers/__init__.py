@@ -7,7 +7,7 @@ import importlib
 import pkgutil
 import inspect
 
-# Dynamically import all classes from all .py files in this directory (excluding __init__.py)
+# Dynamically import all classes from all.py files in this directory (excluding __init__.py)
 __all__ = []
 
 package_dir = os.path.dirname(__file__)

@@ -6,10 +6,10 @@ import os
 import json
 import aiohttp
 from fastmcp import FastMCP
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
-HOSPITAL_SIMILAR_URL = os.environ.get("HOSPITAL_SIMILAR_URL", "http://YOUR_HOST:YOUR_PORT")
-PMC_PATIENTS_URL = os.environ.get("PMC_PATIENTS_URL", "http://YOUR_HOST:YOUR_PORT")
+HOSPITAL_SIMILAR_URL = os.environ.get("HOSPITAL_SIMILAR_URL", "http://localhost:8000")
+PMC_PATIENTS_URL = os.environ.get("PMC_PATIENTS_URL", "http://localhost:8000")
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("similar-case-mcp-server")
@@ -17,16 +17,16 @@ mcp = FastMCP("similar-case-mcp-server")
 
 @mcp.tool()
 async def similar_case_search(patient_id: str, top_k: int = 10) -> str:
-    """检索院内相似病例。根据患者的诊断编码、诊断名称和病历文本，
-    在院内病例库中检索最相似的历史病例，用于辅助临床决策。
+    """.patient,,
+,.
 
-    Args:
-        patient_id: 患者ID，格式如 "patient_xxx"
-        top_k: 返回最相似病例数量，默认10
+ Args:
+ patient_id: patientID, "patient_xxx"
+ top_k: maximum number of results, default 10
 
-    Returns:
-        相似病例检索结果文本
-    """
+ Returns:
+ result
+ """
     url = f"{HOSPITAL_SIMILAR_URL}/tools/similar_case_search"
     try:
         async with aiohttp.ClientSession() as session:
@@ -49,31 +49,31 @@ async def similar_case_search(patient_id: str, top_k: int = 10) -> str:
 async def pmc_similar_case_search(
     text: str, top_k: int = 10, task: str = "PPR", max_chars: int = 600
 ) -> str:
-    """检索PMC外部相似病例。基于患者描述文本，在PMC-Patients数据库中
-    检索相似的已发表病例报告，获取国际文献中的类似病例参考。
+    """Search PMC-Patients for similar patient cases.
+,.
 
-    支持的检索任务类型：
-    - PPR: Patient-to-Patient Retrieval（患者到患者检索）
-    - PAR: Patient-to-Article Retrieval（患者到文献检索）
-    - RARE_RDS: 罕见病症状检索
-    - RARE_RDC: 罕见病病例检索
+ task:
+ - PPR: Patient-to-Patient Retrieval(patientpatient)
+ - PAR: Patient-to-Article Retrieval(patient)
+ - RARE_RDS:
+ - RARE_RDC:
 
-    Args:
-        text: 患者病情描述文本（中文或英文均可，系统自动翻译）
-        top_k: 返回最相似病例数量，默认10
-        task: 检索任务类型，默认"PPR"
-        max_chars: 每条结果最大字符数，默认600
+ Args:
+: patient(,)
+ top_k: maximum number of results, default 10
+ task: retrieval task, default "PPR"
+ max_chars: maximum characters per result, default 600
 
-    Returns:
-        PMC相似病例检索结果
-    """
+ Returns:
+ PMC results
+ """
     url = f"{PMC_PATIENTS_URL}/retrieve"
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 url,
                 json={
-                    "task": task, "text": text,
+                    "task": task, "question": text,
                     "top_k": top_k, "return_text": True, "max_chars": max_chars,
                 },
                 timeout=aiohttp.ClientTimeout(total=120),
@@ -82,13 +82,13 @@ async def pmc_similar_case_search(
                     return f"[ERROR]: PMC-Patients service returned status {resp.status}: {await resp.text()}"
                 results = await resp.json()
                 if not results:
-                    return "未找到相似的PMC病例。"
+                    return "No PMC-Patients results found."
                 parts = []
                 for i, r in enumerate(results, 1):
                     score = r.get("score", "N/A")
                     doc_id = r.get("doc_id", "unknown")
                     txt = r.get("text", "")
-                    parts.append(f"[{i}] (相似度: {score}, ID: {doc_id})\n{txt}")
+                    parts.append(f"[{i}] (similarity: {score}, ID: {doc_id})\n{txt}")
                 return "\n\n".join(parts)
     except aiohttp.ClientError as e:
         return f"[ERROR]: Failed to connect to PMC-Patients service: {str(e)}"

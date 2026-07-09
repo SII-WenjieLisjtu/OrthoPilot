@@ -8,28 +8,28 @@ from urllib.parse import urlparse
 
 enc = tiktoken.get_encoding("cl100k_base")
 
-# ── Google / Serper search ──────────────────────────────────────────────
+# -- Google / Serper search ----------------------------------------------
 
 # def google_search(query: str, top_k: int = 10) -> List[Dict[str,str]]:
-#     if not CFG.serper_key:
-#         raise EnvironmentError("SERPER_API_KEY not set")
-#     r = _SESS.post(
-#         CFG.serper_ep,
-#         headers={"X-API-KEY": CFG.serper_key, "Content-Type": "application/json"},
-#         json={"q": query}, timeout=20)
-#     r.raise_for_status()
-#     hits = []
-#     for it in r.json().get("organic", []):
-#         hits.append({"title": it.get("title",""),
-#                      "link":  it.get("link",""),
-#                      "snippet": it.get("snippet","")})
-#         if len(hits) == top_k: break
-#     return hits
+# if not CFG.serper_key:
+# raise EnvironmentError("SERPER_API_KEY not set")
+# r = _SESS.post(
+# CFG.serper_ep,
+# headers={"X-API-KEY": CFG.serper_key, "Content-Type": "application/json"},
+# json={"q": query}, timeout=20)
+# r.raise_for_status()
+# hits = []
+# for it in r.json().get("organic", []):
+# hits.append({"title": it.get("title",""),
+# "link": it.get("link",""),
+# "snippet": it.get("snippet","")})
+# if len(hits) == top_k: break
+# return hits
 import hashlib, json, logging, os, time
 from typing import List, Dict
 
 def _canon_query(q: str) -> str:
-    # Normalize whitespace to avoid duplicate keys for e.g. "foo  bar"
+    # Normalize whitespace to avoid duplicate keys for e.g. "foo bar"
     return " ".join((q or "").strip().split())
 
 
@@ -44,7 +44,7 @@ def _search_cache_paths(query: str, top_k: int) -> str:
     return os.path.join(root, _search_cache_key(query, top_k))
 
 def _ttl_seconds() -> int:
-    # 0 or missing → no expiry
+    # 0 or missing -> no expiry
     try:
         return int(getattr(CFG, "search_cache_ttl", 0) or int(os.environ.get("SEARCH_CACHE_TTL", "0")))
     except Exception:
@@ -76,8 +76,8 @@ def _save_search_cache(path: str, hits: List[Dict[str, str]]) -> None:
         os.replace(tmp, path)  # atomic on same FS
     except Exception as e:
         logging.debug("Serper cache write failed (%s): %s", path, e)
-        
-    
+
+
 @retry
 def google_search(query: str, top_k: int = 10) -> List[Dict[str,str]]:
     # breakpoint()
@@ -87,7 +87,7 @@ def google_search(query: str, top_k: int = 10) -> List[Dict[str,str]]:
     cpath = _search_cache_paths(query, top_k)
     cached = _load_search_cache(cpath)
     if cached is not None:
-        logging.info("Serper search (cache hit) ← %r (top_k=%d)", _canon_query(query), top_k)
+        logging.info("Serper search (cache hit) <- %r (top_k=%d)", _canon_query(query), top_k)
         return cached
     # breakpoint()
     r = _SESS.post(
@@ -111,14 +111,14 @@ def google_search(query: str, top_k: int = 10) -> List[Dict[str,str]]:
     return hits
 
 
-# ── async extract per hit ───────────────────────────────────────────────
+# -- async extract per hit -----------------------------------------------
 async def async_search_and_extract(query: str, top_k: int = 5) -> List[Dict]:
     hits = google_search(query, top_k)
     async def enrich(h):
         return {**h, "body": await fetch_url(h["link"])}
     return await asyncio.gather(*(enrich(h) for h in hits))
 
-# ── markdown helpers ────────────────────────────────────────────────────
+# -- markdown helpers ----------------------------------------------------
 def url_hits_to_markdown(hits: List[Dict[str,str]]) -> str:
     out = []
     for i, h in enumerate(hits, 1):
@@ -141,6 +141,6 @@ def trim_to_tokens(text: str, limit: int, model: str = "gpt-3.5-turbo") -> str:
 def _bad(url: str) -> str|None:
     p = urlparse(url)
     if p.scheme not in ("http","https") or not p.netloc:
-        return "[error: invalid URL – must start with http:// or https://]"
+        return "[error: invalid URL - must start with http:// or https://]"
     return None
 

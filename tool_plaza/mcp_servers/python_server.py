@@ -9,7 +9,7 @@ from e2b_code_interpreter import Sandbox
 from fastmcp import FastMCP
 
 # Initialize FastMCP server
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("e2b-python-interpreter")
@@ -62,7 +62,7 @@ COMMON_PACKAGES = [
 # System packages to install in sandbox
 SYSTEM_PACKAGES = [
     "poppler-utils",  # for pdfinfo, pdftotext, pdfimages, pdftoppm commands
-    "pdfgrep",  # for pdfgrep command (PDF text search)
+    "pdfgrep",  # for pdfgrep command (PDF search)
     "libimage-exiftool-perl",  # for exiftool command (image metadata)
     "unlambda",  # for unlambda interpreter
     "stockfish",  # for stockfish chess engine
@@ -72,13 +72,13 @@ SYSTEM_PACKAGES = [
 async def _install_common_packages(sandbox, sandbox_id: str) -> bool:
     """Install common Python packages in the sandbox.
 
-    Args:
-        sandbox: The connected sandbox instance
-        sandbox_id: The sandbox ID for error messages
+ Args:
+ sandbox: The connected sandbox instance
+ sandbox_id: The sandbox ID for error messages
 
-    Returns:
-        True if installation successful, False otherwise
-    """
+ Returns:
+ True if installation successful, False otherwise
+ """
     # Install system packages first (pdfinfo, pdftotext, etc.)
     try:
         # Update package list
@@ -138,13 +138,13 @@ async def _install_common_packages(sandbox, sandbox_id: str) -> bool:
 async def create_sandbox() -> str:
     """Create a linux sandbox and get the `sandbox_id` for safely executing commands and running python code. Note that the `sandbox_id` can only be assigned and cannot be manually specified.
 
-    The sandbox may timeout and automatically shutdown. If so, you will need to create a new sandbox.
+ The sandbox may timeout and automatically shutdown. If so, you will need to create a new sandbox.
 
-    IMPORTANT: Do not execute `create_sandbox` and other sandbox tools in the same message. You must wait for `create_sandbox` to return the `sandbox_id`, then use that `sandbox_id` to specify the working sandbox in subsequent messages.
+ IMPORTANT: Do not execute `create_sandbox` and other sandbox tools in the same message. You must wait for `create_sandbox` to return the `sandbox_id`, then use that `sandbox_id` to specify the working sandbox in subsequent messages.
 
-    Returns:
-        The `sandbox_id` of the newly created sandbox. You should use this `sandbox_id` to run other tools in the sandbox.
-    """
+ Returns:
+ The `sandbox_id` of the newly created sandbox. You should use this `sandbox_id` to run other tools in the sandbox.
+ """
     max_retries = 5
     for attempt in range(1, max_retries + 1):
         sandbox = None
@@ -177,15 +177,15 @@ async def create_sandbox() -> str:
 @mcp.tool()
 async def run_command(sandbox_id: str, command: str) -> str:
     """Execute a shell command in the linux sandbox.
-    The sandbox is already installed with common system packages for the task.
+ The sandbox is already installed with common system packages for the task.
 
-    Args:
-        sandbox_id: The id of the existing sandbox to execute the command in. (must be created first via `create_sandbox`).
-        command: The shell command to execute in the sandbox.
+ Args:
+ sandbox_id: The id of the existing sandbox to execute the command in. (must be created first via `create_sandbox`).
+ command: The shell command to execute in the sandbox.
 
-    Returns:
-        A result of the command execution, format like (stderr=..., stdout=..., exit_code=..., error=...)
-    """
+ Returns:
+ A result of the command execution, format like (stderr=..., stdout=..., exit_code=..., error=...)
+ """
     sandbox = None
     try:
         sandbox = Sandbox.connect(sandbox_id, api_key=E2B_API_KEY)
@@ -227,15 +227,15 @@ async def run_command(sandbox_id: str, command: str) -> str:
 @mcp.tool()
 async def run_python_code(sandbox_id: str, code_block: str) -> str:
     """Run python code in the sandbox and return the execution result.
-    The sandbox is already installed with common python packages for the task.
+ The sandbox is already installed with common python packages for the task.
 
-    Args:
-        sandbox_id: The id of the existing sandbox to run the code in. (must be created first via `create_sandbox`).
-        code_block: The python code to run in the sandbox.
+ Args:
+ sandbox_id: The id of the existing sandbox to run the code in. (must be created first via `create_sandbox`).
+ code_block: The python code to run in the sandbox.
 
-    Returns:
-        A result of the command execution, format like (stderr=..., stdout=..., exit_code=..., error=...)
-    """
+ Returns:
+ A result of the command execution, format like (stderr=..., stdout=..., exit_code=..., error=...)
+ """
     sandbox = None
     try:
         sandbox = Sandbox.connect(sandbox_id=sandbox_id, api_key=E2B_API_KEY)
@@ -265,18 +265,18 @@ async def run_python_code(sandbox_id: str, code_block: str) -> str:
 
 @mcp.tool()
 async def upload_file_from_local_to_sandbox(
-    sandbox_id: str, local_file_path: str, sandbox_file_path: str = "/path/to/user_home"
+    sandbox_id: str, local_file_path: str, sandbox_file_path: str = "/workspace"
 ) -> str:
-    """Upload a local file to the `/path/to/user_home` dir of the sandbox.
+    """Upload a local file to the `/workspace` dir of the sandbox.
 
-    Args:
-        sandbox_id: The id of the existing sandbox to update files in. To have a sandbox, use tool `create_sandbox`.
-        local_file_path: The local path of the file to upload.
-        sandbox_file_path: The path of directory to upload the file to in the sandbox. Default is `/path/to/user_home/`.
+ Args:
+ sandbox_id: The id of the existing sandbox to update files in. To have a sandbox, use tool `create_sandbox`.
+ local_file_path: The local path of the file to upload.
+ sandbox_file_path: The path of directory to upload the file to in the sandbox. Default is `/workspace/`.
 
-    Returns:
-        The path of the uploaded file in the sandbox if the upload is successful.
-    """
+ Returns:
+ The path of the uploaded file in the sandbox if the upload is successful.
+ """
     sandbox = None
     try:
         sandbox = Sandbox.connect(sandbox_id, api_key=E2B_API_KEY)
@@ -310,19 +310,19 @@ async def upload_file_from_local_to_sandbox(
 
 @mcp.tool()
 async def download_file_from_internet_to_sandbox(
-    sandbox_id: str, url: str, sandbox_file_path: str = "/path/to/user_home"
+    sandbox_id: str, url: str, sandbox_file_path: str = "/workspace"
 ) -> str:
-    """Download a file from the internet to the `/path/to/user_home` dir of the sandbox.
-    You should use this tool to download files from the internet.
+    """Download a file from the internet to the `/workspace` dir of the sandbox.
+ You should use this tool to download files from the internet.
 
-    Args:
-        sandbox_id: The id of the existing sandbox to download the file to. To have a sandbox, use tool `create_sandbox`.
-        url: The URL of the file to download.
-        sandbox_file_path: The path of directory to download the file to in the sandbox. Default is `/path/to/user_home/`.
+ Args:
+ sandbox_id: The id of the existing sandbox to download the file to. To have a sandbox, use tool `create_sandbox`.
+ url: The URL of the file to download.
+ sandbox_file_path: The path of directory to download the file to in the sandbox. Default is `/workspace/`.
 
-    Returns:
-        The path of the downloaded file in the sandbox if the download is successful.
-    """
+ Returns:
+ The path of the downloaded file in the sandbox if the download is successful.
+ """
     sandbox = None
     try:
         sandbox = Sandbox.connect(sandbox_id, api_key=E2B_API_KEY)
@@ -363,14 +363,14 @@ async def download_file_from_sandbox_to_local(
 ) -> str:
     """Download a file from the sandbox to local system. Files in sandbox cannot be processed by tools from other servers - only local files and internet URLs can be processed by them.
 
-    Args:
-        sandbox_id: The id of the sandbox to download the file from. To have a sandbox, use tool `create_sandbox`.
-        sandbox_file_path: The path of the file to download on the sandbox.
-        local_filename: Optional filename to save as. If not provided, uses the original filename from sandbox_file_path.
+ Args:
+ sandbox_id: The id of the sandbox to download the file from. To have a sandbox, use tool `create_sandbox`.
+ sandbox_file_path: The path of the file to download on the sandbox.
+ local_filename: Optional filename to save as. If not provided, uses the original filename from sandbox_file_path.
 
-    Returns:
-        The local path of the downloaded file if successful, otherwise error message.
-    """
+ Returns:
+ The local path of the downloaded file if successful, otherwise error message.
+ """
     sandbox = None
     try:
         sandbox = Sandbox.connect(sandbox_id, api_key=E2B_API_KEY)
@@ -390,7 +390,7 @@ async def download_file_from_sandbox_to_local(
         os.makedirs(tmpfiles_dir, exist_ok=True)
 
         # Determine local filename
-        if local_filename is None or local_filename.strip() == "":
+        if local_filename is None or not local_filename.strip():
             local_filename = os.path.basename(sandbox_file_path)
 
         local_file_path = os.path.join(

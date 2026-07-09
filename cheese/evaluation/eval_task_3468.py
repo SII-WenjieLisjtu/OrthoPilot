@@ -38,16 +38,16 @@ def compute_all_metrics(reference, hypothesis):
 def prepare_json(json_path):
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
-    
+
     rt_data = {}
     for item in data:
         if item['id'] not in rt_data:
             rt_data[item['id']] = []
         rt_data[item['id']].append({
             'c': item['messages'],
-            'type': item.get('type', '开放') # task68忘了写了
+            'type': item.get('type', 'open') # task68
         })
-    
+
     return rt_data
 
 
@@ -55,19 +55,19 @@ if __name__ == "__main__":
     all_questions = {}
     for key in ['task3', 'task4', 'task6', 'task8']:
         all_questions[key] = {
-            '开放': [], #ROUGE-L F1, BLEU Score, Cosine Similarity
-            '选择': [0, 0], # T, F
-            '判断': [0, 0, 0, 0] #TT, TF, FT, FF
+            'open': [], #ROUGE-L F1, BLEU Score, Cosine Similarity
+            'choice': [0, 0], # T, F
+            'judgement': [0, 0, 0, 0] #TT, TF, FT, FF
         }
 
     # task_3_data = prepare_json('data_for_eval/task3.json')
     # task_4_data = prepare_json('data_for_eval/task4.json')
     # task_6_data = prepare_json('data_for_eval/task6.json')
     # task_8_data = prepare_json('data_for_eval/task8.json')
-    task_3_data = prepare_json('/path/to/storage).infer.json')
-    task_4_data = prepare_json('/path/to/storage).infer.json')
-    task_6_data = prepare_json('/path/to/storage).infer.json')
-    task_8_data = prepare_json('/path/to/storage).infer.json')
+    task_3_data = prepare_json('data/example_predictions.json')
+    task_4_data = prepare_json('data/example_predictions.json')
+    task_6_data = prepare_json('data/example_predictions.json')
+    task_8_data = prepare_json('data/example_predictions.json')
 
     data_pairs = {
         # 'task3': [task_3_gt, task_3_pred],
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         'task6': [task_6_data],
         'task8': [task_8_data]
     }
-    
+
 
     for task, data in data_pairs.items():
         for pid, qas in data[0].items():
@@ -87,22 +87,22 @@ if __name__ == "__main__":
                 gt = qa['c'][2]['value']
                 answer = qa['c'][3]['value']
 
-                if qa['type'] == '判断':                
+                if qa['type'] == 'judgement':
                     answer = answer[-1]
                     if gt == answer:
-                        all_questions[task]['判断'][0] += 1
-                    elif gt == '是' and answer == '否':
-                        all_questions[task]['判断'][1] += 1
-                    elif gt == '否' and answer == '是':
-                        all_questions[task]['判断'][2] += 1
+                        all_questions[task]['judgement'][0] += 1
+                    elif gt == 'yes' and answer == 'no':
+                        all_questions[task]['judgement'][1] += 1
+                    elif gt == 'no' and answer == 'yes':
+                        all_questions[task]['judgement'][2] += 1
                     else:
-                        all_questions[task]['判断'][3] += 1
-                
-                if qa['type'] == '选择':
-                    gt = gt.lower()  
+                        all_questions[task]['judgement'][3] += 1
+
+                if qa['type'] == 'choice':
+                    gt = gt.lower()
                     answer = answer[-1]
                     if answer not in ['a', 'b', 'c', 'd', 'A', 'B', 'C', 'D']:
-                        # 提取最后20个字符中的最后一个英文字母
+                        # 20
                         last_20 = qa['c'][3]['value'][-20:]
                         match = re.findall(r'[a-zA-Z]', last_20)
                         answer = match[-1] if match else ''
@@ -110,43 +110,43 @@ if __name__ == "__main__":
                             break
                     answer = answer.lower()
                     if gt == answer:
-                        all_questions[task]['选择'][0] += 1
+                        all_questions[task]['choice'][0] += 1
                     else:
-                        all_questions[task]['选择'][1] += 1
-                        
-                if qa['type'] == '开放':
+                        all_questions[task]['choice'][1] += 1
+
+                if qa['type'] == 'open':
                     rouge_l, bleu, cosine = compute_all_metrics(gt, answer)
-                    all_questions[task]['开放'].append([rouge_l, bleu, cosine])
-                    
-            
-    
-    # 输出数据总结
+                    all_questions[task]['open'].append([rouge_l, bleu, cosine])
+
+
+
+    # output
     for task, results in all_questions.items():
-        print(f"任务: {task}")
-        # 开放题
-        if results['开放']:
-            rouge_l_scores = [x[0] for x in results['开放']]
-            bleu_scores = [x[1] for x in results['开放']]
-            cosine_scores = [x[2] for x in results['开放']]
-            print(f"  开放题数量: {len(results['开放'])}")
-            print(f"    ROUGE-L F1 平均值: {np.mean(rouge_l_scores):.4f}")
-            print(f"    BLEU 平均值: {np.mean(bleu_scores):.4f}")
-            print(f"    Cosine Similarity 平均值: {np.mean(cosine_scores):.4f}")
+        print(f"task: {task}")
+        # open
+        if results['open']:
+            rouge_l_scores = [x[0] for x in results['open']]
+            bleu_scores = [x[1] for x in results['open']]
+            cosine_scores = [x[2] for x in results['open']]
+            print(f" open: {len(results['open'])}")
+            print(f" ROUGE-L F1: {np.mean(rouge_l_scores):.4f}")
+            print(f" BLEU: {np.mean(bleu_scores):.4f}")
+            print(f" Cosine Similarity: {np.mean(cosine_scores):.4f}")
         else:
-            print("  开放题: 无数据")
-        # 选择题
-        total_choice = sum(results['选择'])
+            print(" open: ")
+        # choice
+        total_choice = sum(results['choice'])
         if total_choice > 0:
-            print(f"  选择题数量: {total_choice}")
-            print(f"    正确: {results['选择'][0]}, 错误: {results['选择'][1]}, 正确率: {results['选择'][0]/total_choice:.2%}")
+            print(f" choice: {total_choice}")
+            print(f": {results['choice'][0]}, error: {results['choice'][1]},: {results['choice'][0]/total_choice:.2%}")
         else:
-            print("  选择题: 无数据")
-        # 判断题
-        total_judge = sum(results['判断'])
+            print(" choice: ")
+        # judgement
+        total_judge = sum(results['judgement'])
         if total_judge > 0:
-            print(f"  判断题数量: {total_judge}")
-            print(f"    TT: {results['判断'][0]}, TF: {results['判断'][1]}, FT: {results['判断'][2]}, FF: {results['判断'][3]}")
-            print(f"    正确率: {((results['判断'][0] + results['判断'][3])/total_judge):.2%}")
+            print(f" judgement: {total_judge}")
+            print(f" TT: {results['judgement'][0]}, TF: {results['judgement'][1]}, FT: {results['judgement'][2]}, FF: {results['judgement'][3]}")
+            print(f": {((results['judgement'][0] + results['judgement'][3])/total_judge):.2%}")
         else:
-            print("  判断题: 无数据")
+            print(" judgement: ")
         print("-" * 40)

@@ -15,7 +15,7 @@ import asyncio
 from .utils.smart_request import smart_request
 
 # Initialize FastMCP server
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("reading-mcp-server")
@@ -26,14 +26,14 @@ JINA_API_KEY = os.environ.get("JINA_API_KEY", "")
 @mcp.tool()
 async def read_file(uri: str) -> str:
     """Read various types of resources (Doc, PPT, PDF, Excel, CSV, ZIP file etc.)
-    described by an file: or data: URI.
+ described by an file: or data: URI.
 
-    Args:
-        uri: Required. The URI of the resource to read. Need to start with 'file:' or 'data:' schemes. Files from sandbox are not supported. You should use the local file path.
+ Args:
+ uri: Required. The URI of the resource to read. Need to start with 'file:' or 'data:' schemes. Files from sandbox are not supported. You should use the local file path.
 
-    Returns:
-        str: The content of the resource, or an error message if reading fails.
-    """
+ Returns:
+ str: The content of the resource, or an error message if reading fails.
+ """
     if not uri or not uri.strip():
         return "[ERROR]: URI parameter is required and cannot be empty."
 
@@ -51,7 +51,7 @@ async def read_file(uri: str) -> str:
     if not any(uri.lower().startswith(scheme) for scheme in valid_schemes):
         return f"[ERROR]: Invalid URI scheme. Supported schemes are: {', '.join(valid_schemes)}"
 
-    # If it’s an HTTP(S) URL, download it first with a compliant UA:
+    # If it's an HTTP(S) URL, download it first with a compliant UA:
     if uri.lower().startswith(("http://", "https://")):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

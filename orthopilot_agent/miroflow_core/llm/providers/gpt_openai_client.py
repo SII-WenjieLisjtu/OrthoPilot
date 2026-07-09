@@ -11,9 +11,9 @@ from omegaconf import DictConfig
 from openai import AsyncOpenAI, OpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from src.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 import os
 
@@ -52,11 +52,11 @@ class GPTOpenAIClient(LLMProviderClientBase):
         keep_tool_result: int = -1,
     ):
         """
-        Send message to OpenAI API.
-        :param system_prompt: System prompt string.
-        :param messages: Message history list.
-        :return: OpenAI API response object or None (if error occurs).
-        """
+ Send message to OpenAI API.
+:param system_prompt: System prompt string.
+:param messages: Message history list.
+:return: OpenAI API response object or None (if error occurs).
+ """
         is_oai_new_model = (
             self.model_name.startswith("o1")
             or self.model_name.startswith("o3")
@@ -157,7 +157,7 @@ class GPTOpenAIClient(LLMProviderClientBase):
         self, params: Dict[str, Any], messages: List[Dict[str, Any]], is_async: bool
     ):
         """Handles the logic for oai_tool_thinking."""
-        # ---- Step 1: Let AI output text first, without calling tools ----
+        # ---- Step 1: Let AI output first, without calling tools ----
         params["tool_choice"] = "none"
         response = await self._create_completion(params, is_async)
 
@@ -183,13 +183,13 @@ class GPTOpenAIClient(LLMProviderClientBase):
     def _strip_think_tags(text: str) -> str:
         """Strip <think>...</think> and <answer>...</answer> tags from model response.
 
-        For models like Qwen3 that use <think> tags for reasoning:
-        - Remove <think>...</think> blocks entirely (thinking is extracted separately).
-        - Unwrap <answer>...</answer> tags, keeping the inner content.
-        - If ALL content is inside <think> tags (nothing outside), return empty string
-          so that tool_calls responses can fall back to tool call descriptions.
-        - Handles unclosed <think> tags (no </think>).
-        """
+ For models like Qwen3 that use <think> tags for reasoning:
+ - Remove <think>...</think> blocks entirely (thinking is extracted separately).
+ - Unwrap <answer>...</answer> tags, keeping the inner content.
+ - If ALL content is inside <think> tags (nothing outside), return empty string
+ so that tool_calls responses can fall back to tool call descriptions.
+ - Handles unclosed <think> tags (no </think>).
+ """
         if not text:
             return text
 
@@ -215,7 +215,7 @@ class GPTOpenAIClient(LLMProviderClientBase):
         if stripped:
             return stripped
 
-        # All content was inside <think> tags — return empty string.
+        # All content was inside <think> tags - return empty string.
         # Thinking content is already extracted separately by the orchestrator.
         return ""
 
@@ -229,7 +229,7 @@ class GPTOpenAIClient(LLMProviderClientBase):
             logger.debug(f"Error: {error_msg}")
             return "", True  # Exit loop
 
-        # Extract LLM response text
+        # Extract LLM response
         if llm_response.choices[0].finish_reason == "stop":
             assistant_response_text = llm_response.choices[0].message.content or ""
             assistant_response_text = self._strip_think_tags(assistant_response_text)
@@ -237,12 +237,12 @@ class GPTOpenAIClient(LLMProviderClientBase):
                 {"role": "assistant", "content": assistant_response_text}
             )
         elif llm_response.choices[0].finish_reason == "tool_calls":
-            # For tool_calls, we need to extract tool call information as text
+            # For tool_calls, we need to extract tool call information as
             tool_calls = llm_response.choices[0].message.tool_calls
             assistant_response_text = llm_response.choices[0].message.content or ""
             assistant_response_text = self._strip_think_tags(assistant_response_text)
 
-            # If there's no text content, we generate a text describing the tool call
+            # If there's no content, we generate a describing the tool call
             if not assistant_response_text:
                 tool_call_descriptions = []
                 for tool_call in tool_calls:
@@ -271,7 +271,7 @@ class GPTOpenAIClient(LLMProviderClientBase):
         elif llm_response.choices[0].finish_reason == "length":
             assistant_response_text = llm_response.choices[0].message.content or ""
             assistant_response_text = self._strip_think_tags(assistant_response_text)
-            if assistant_response_text == "":
+            if not assistant_response_text:
                 assistant_response_text = "LLM response is empty. This is likely due to thinking block used up all tokens."
             message_history.append(
                 {"role": "assistant", "content": assistant_response_text}
@@ -286,7 +286,7 @@ class GPTOpenAIClient(LLMProviderClientBase):
 
     def extract_tool_calls_info(self, llm_response, assistant_response_text):
         """Extract tool call information from OpenAI LLM response"""
-        from src.utils.parsing_utils import parse_llm_response_for_tool_calls
+        from orthopilot_agent.miroflow_core.utils.parsing_utils import parse_llm_response_for_tool_calls
 
         # For OpenAI, get tool calls directly from response object
         if llm_response.choices[0].finish_reason == "tool_calls":

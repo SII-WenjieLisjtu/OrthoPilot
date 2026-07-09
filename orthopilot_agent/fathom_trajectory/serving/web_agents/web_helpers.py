@@ -4,7 +4,7 @@ from typing import Callable
 from bs4 import BeautifulSoup
 from config import CFG, _RND
 
-# ── retry ────────────────────────────────────────────────────────────────
+# -- retry ----------------------------------------------------------------
 def retry(fn: Callable) -> Callable:
     @functools.wraps(fn)
     def _wrap(*a, **kw):
@@ -20,7 +20,7 @@ def retry(fn: Callable) -> Callable:
                 time.sleep(delay)
     return _wrap
 
-# ── text extraction ──────────────────────────────────────────────────────
+# -- extraction ------------------------------------------------------
 def extract_main_text(html: str) -> str:
     txt = trafilatura.extract(html, output_format="txt") or ""
     if len(txt) >= 500:
@@ -34,7 +34,7 @@ def extract_main_text(html: str) -> str:
         tag.decompose()
     return re.sub(r"\s+", " ", soup.get_text(" ").strip())
 
-# ── last‑chance fetch when everything fails ──────────────────────────────
+# -- last-chance fetch when everything fails ------------------------------
 @retry
 def fetch_blocked_site(url: str) -> str:
     hdrs = {"User-Agent": CFG.ua, "Referer": "https://www.google.com/"}

@@ -1,11 +1,11 @@
 # Prompt for Main Agent Summarization
 
 **Source files**
-- `/path/to/orthopilot/MiroFlow/config/agent_prompts/main_boxed_answer.py`
-- `/path/to/orthopilot/MiroFlow/src/core/orchestrator.py`
+- `prompts/prompt-for-main-agent-system.md`
+- `orthopilot_agent/miroflow_core/core/orchestrator.py`
 
 **Runtime note**
-- This prompt is used when the main-agent session ends or reaches a context or turn limit.
+- This prompt is used when the main-agent session ends or reaches a con or turn limit.
 - The appendix version converts the original reference label into an English `References` section.
 
 ## Rewritten prompt

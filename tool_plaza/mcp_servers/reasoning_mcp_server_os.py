@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@ import time
 
 import requests
 from fastmcp import FastMCP
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 logger = logging.getLogger("miroflow")
 
@@ -39,7 +39,7 @@ BACKOFF_MAX = 30.0  # maximum backoff in seconds
 
 def post_with_retry(url, json, headers):
     """Send POST request with retry and exponential backoff.
-    Returns response object if success, otherwise None."""
+ Returns response object if success, otherwise None."""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             resp = requests.post(url, json=json, headers=headers, timeout=600)
@@ -67,14 +67,14 @@ def post_with_retry(url, json, headers):
 @mcp.tool()
 async def reasoning(question: str) -> str:
     """You can use this tool use solve hard math problem, puzzle, riddle and IQ test question that requires a lot of chain of thought efforts.
-    DO NOT use this tool for simple and obvious question.
+ DO NOT use this tool for simple and obvious question.
 
-    Args:
-        question: The hard question.
+ Args:
+ question: The hard question.
 
-    Returns:
-        The answer to the question.
-    """
+ Returns:
+ The answer to the question.
+ """
     payload = {
         "model": REASONING_MODEL_NAME,
         "messages": [{"role": "user", "content": question}],

@@ -5,7 +5,7 @@ from .response import ToolResponse
 
 
 class Tool(ABC):
-    """工具基类，需实现run和get_parameters方法"""
+    """, textrunget_parameters"""
 
     def __init__(self, name: str, description: str):
         self.name = name
@@ -13,16 +13,16 @@ class Tool(ABC):
 
     @abstractmethod
     def run(self, parameters: Dict[str, Any]) -> str:
-        """执行工具，返回结果字符串"""
+        """, result"""
         pass
 
     @abstractmethod
     def get_parameters(self) -> List[ToolParameter]:
-        """返回工具参数定义列表"""
+        """"""
         pass
 
     def to_openai_schema(self) -> dict[str, Any]:
-        """构建OpenAI function calling schema"""
+        """OpenAI function calling schema"""
         parameters = self.get_parameters()
 
         properties = {}
@@ -47,7 +47,7 @@ class Tool(ABC):
         }
 
     def execute(self, parameters: Dict[str, Any]) -> ToolResponse:
-        """执行工具并返回标准响应"""
+        """"""
         try:
             result = self.run(parameters)
             return ToolResponse(
@@ -65,5 +65,5 @@ class Tool(ABC):
             )
 
     def get_openai_function_schema(self) -> dict[str, Any]:
-        """兼容方法，返回function部分"""
+        """, function"""
         return self.to_openai_schema()["function"]

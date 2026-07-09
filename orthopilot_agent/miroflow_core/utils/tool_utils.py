@@ -8,8 +8,8 @@ import importlib
 from mcp import StdioServerParameters
 from omegaconf import DictConfig, OmegaConf
 
-from src.logging.logger import bootstrap_logger
-from config.agent_prompts.base_agent_prompt import BaseAgentPrompt
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
+from typing import Any
 
 import os
 
@@ -26,13 +26,13 @@ def create_mcp_server_parameters(
 ):
     """Define and return MCP server configuration list
 
-    Args:
-        cfg: The global Hydra configuration object.
-        agent_cfg: The agent-specific configuration.
-        logs_dir: Optional directory for logs.
-        enabled_tools: If provided, only load these tools (for sub-agent dynamic loading).
-                      If None, use agent_cfg's tool_config (for main agent).
-    """
+ Args:
+ cfg: The global Hydra configuration object.
+ agent_cfg: The agent-specific configuration.
+ logs_dir: Optional directory for logs.
+ enabled_tools: If provided, only load these tools (for sub-agent dynamic loading).
+ If None, use agent_cfg's tool_config (for main agent).
+ """
     configs = []
 
     # Determine the tool list to load
@@ -80,19 +80,19 @@ def create_mcp_server_parameters(
     return configs, blacklist
 
 
-def _load_agent_prompt_class(prompt_class_name: str) -> BaseAgentPrompt:
-    # Dynamically import the class from the config.agent_prompts module
+def _load_agent_prompt_class(prompt_class_name: str) -> Any:
+    # Dynamically import the class from the public agent prompt package
     if not isinstance(prompt_class_name, str) or not prompt_class_name.isidentifier():
         raise ValueError(f"Invalid prompt class name: {prompt_class_name}")
 
     try:
         # Import the module dynamically
-        agent_prompts_module = importlib.import_module("config.agent_prompts")
+        agent_prompts_module = importlib.import_module("orthopilot_agent.configs.agent_prompts")
         # Get the class from the module
         PromptClass = getattr(agent_prompts_module, prompt_class_name)
     except (ModuleNotFoundError, AttributeError) as e:
         raise ImportError(
-            f"Could not import class '{prompt_class_name}' from 'config.agent_prompts': {e}"
+            f"Could not import class '{prompt_class_name}' from 'orthopilot_agent.configs.agent_prompts': {e}"
         )
     return PromptClass()
 

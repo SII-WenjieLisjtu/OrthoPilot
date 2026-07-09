@@ -11,7 +11,7 @@ class _Cfg:
     serper_cache_dir             =  os.getenv("SERPER_CACHE_DIR", "")
     jina_key              = os.getenv("JINA_API_KEY", "")
     query_llm             = os.getenv("QUERY_LLM", "gpt-4.1-mini")
-    serper_ep             = "https://YOUR_SEARCH_API_URL"
+    serper_ep             = "https://google.serper.dev/search"
     retries               = 3
     backoff               = 0.8
     connect_to            = 5
@@ -24,8 +24,8 @@ class _Cfg:
     output_limit_per_link = 6_000
     disable_narrative_compress_thresh = 2_000
     pct                  = 0.25          # narrative compression pct
-    reddit_client_id = "Q2tovcGfYmo3hPNvzTpkXA"
-    reddit_client_secret = "geu4gH3pEOrNnsMpQvdTTVhQvDABgg"
+    reddit_client_id = os.getenv("REDDIT_CLIENT_ID", "")
+    reddit_client_secret = os.getenv("REDDIT_CLIENT_SECRET", "")
 
 
 CFG   = _Cfg()
@@ -34,5 +34,5 @@ _SESS = requests.Session()
 _SESS.headers.update({"User-Agent": CFG.ua})
 
 # logging.basicConfig(level=logging.INFO,
-#                     format="%(asctime)s - %(levelname)s - %(message)s")
+# format="%(asctime)s - %(levelname)s - %(message)s")
 logging.getLogger().setLevel(logging.INFO)   # bump root to DEBUG

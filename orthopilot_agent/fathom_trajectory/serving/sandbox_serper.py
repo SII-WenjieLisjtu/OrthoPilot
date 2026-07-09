@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""sandbox_serper.py – resilient Serper sandbox v2.1
+"""sandbox_serper.py - resilient Serper sandbox v2.1
 
 Fixes
 -----
 * Moved `global _MAX_OUTBOUND, _SEM` declaration to the **top of `main()`**
-  before any reference, eliminating the `SyntaxError: name used prior to
-  global declaration`.
+ before any reference, eliminating the `SyntaxError: name used prior to
+ global declaration`.
 * No functional changes otherwise.
 """
 
@@ -15,8 +15,8 @@ from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 import uvicorn
-import time 
-# ───────────────────────── logging setup ──────────────────────────
+import time
+# ------------------------- logging setup --------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("sandbox_serper")
 
@@ -27,15 +27,15 @@ class Req(BaseModel):
     call: str
     timeout: int = 60
 
-# ───────────────────── global throughput gate ─────────────────────
+# --------------------- global throughput gate ---------------------
 _MAX_OUTBOUND = int(os.getenv("MAX_OUTBOUND", "10"))
 _SEM = asyncio.Semaphore(_MAX_OUTBOUND)
 
-# ───────────────────────── endpoint ───────────────────────────────
+# ------------------------- endpoint -------------------------------
 @app.post("/execute")
 async def execute(req: Req):
     # async with _SEM:
-    async with _SEM:          #  ❰❰  throttle
+    async with _SEM:          # << throttle
         result = await run_in_threadpool(_safe_eval, req.env,
                                           req.call, req.timeout)
 
@@ -45,13 +45,13 @@ async def execute(req: Req):
         "error": None if not str(result).startswith("[tool-error]") else result,
     }
 
-# ───────────────────── sandbox evaluator ──────────────────────────
+# --------------------- sandbox evaluator --------------------------
 
 def _safe_eval(env: str, call: str, timeout: int):
     start = time.time(); loc: dict = {}
     # breakpoint()
     # TODO
-    print('沙盒正在执行代码。。。。。。')
+    print('......')
     # print(env)
     try:
         exec(env, {}, loc)
@@ -63,10 +63,10 @@ def _safe_eval(env: str, call: str, timeout: int):
         log.error("tool error: %s\n%s", e, traceback.format_exc())
         return f"[tool-error] {e}"
 
-# ─────────────────────────── main ────────────────────────────────
+# --------------------------- main --------------------------------
 
 def main():
-    global _MAX_OUTBOUND, _SEM  # ← moved to top
+    global _MAX_OUTBOUND, _SEM  # <- moved to top
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=1211)
@@ -81,13 +81,13 @@ def main():
     if args.reload and args.workers > 1:
         raise SystemExit("--reload and --workers>1 are mutually exclusive")
 
-    # log.info("Starting sandbox :%d | workers=%d | max_outbound=%d",
-            #  args.port, args.workers, _MAX_OUTBOUND)
+    # log.info("Starting sandbox:%d | workers=%d | max_outbound=%d",
+            # args.port, args.workers, _MAX_OUTBOUND)
 
     if args.workers > 1:
-        uvicorn.run("sandbox_serper:app", host="YOUR_HOST", port=args.port, workers=args.workers)
+        uvicorn.run("sandbox_serper:app", host="127.0.0.1", port=args.port, workers=args.workers)
     else:
-        uvicorn.run(app, host="YOUR_HOST", port=args.port, reload=args.reload)
+        uvicorn.run(app, host="127.0.0.1", port=args.port, reload=args.reload)
 
 
 if __name__ == "__main__":

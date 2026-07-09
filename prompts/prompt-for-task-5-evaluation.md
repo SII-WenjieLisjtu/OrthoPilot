@@ -1,17 +1,17 @@
 # Prompt for Task 5 Evaluation
 
 **Source files**
-- `/path/to/orthopilot/gen_validation/task5promt.py`
-- `/path/to/orthopilot/gen_validation/task_all_gen_async.py`
+- `oracle/task5promt.py`
+- `oracle/task_all_gen_async.py`
 
 ## Rewritten prompt
 Task name: perioperative readiness assessment.
 
 Concern definitions:
 - Clear surgical decision
-  - `primary`: state explicitly whether surgery can proceed.
-  - `secondary`: if surgery should not proceed yet, state the reason or the required corrective step.
-  - `additional`: note special patient-specific risks, such as infectious exposure or major comorbid risk factors.
+ - `primary`: state explicitly whether surgery can proceed.
+ - `secondary`: if surgery should not proceed yet, state the reason or the required corrective step.
+ - `additional`: note special patient-specific risks, such as infectious exposure or major comorbid risk factors.
 
 Criteria-generation guidance:
 Build a complete rubric covering all concern categories. Each extracted item must be assigned to `primary`, `secondary`, or `additional`, with no overlap between levels. Empty levels must remain empty lists. Split compound recommendations into separate items and attach a short reason for each classification.
@@ -22,6 +22,6 @@ Given a student answer and the rubric, decide whether each rubric item is covere
 ## Scoring weights
 ```json
 {
-  "Clear surgical decision": {"primary": 5, "secondary": 2, "additional": 1}
+ "Clear surgical decision": {"primary": 5, "secondary": 2, "additional": 1}
 }
 ```

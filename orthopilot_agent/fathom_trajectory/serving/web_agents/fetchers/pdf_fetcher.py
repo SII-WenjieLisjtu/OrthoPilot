@@ -2,7 +2,7 @@ from __future__ import annotations
 from config import CFG, _SESS
 import io, logging, re, pymupdf as fitz
 
-from web_helpers import retry, fetch_blocked_site     # ⬅️ shared
+from web_helpers import retry, fetch_blocked_site     # <- shared
 # ----------------------------------------------------------------------
 
 class PDFExtractError(RuntimeError): ...
@@ -31,7 +31,7 @@ def _extract_pdf(buf: bytes) -> str:
         if len(parts) >= CFG.pdf_pages_cap:
             break
         text = (
-            page.get_text("text")
+            page.get_text("")
             .replace("\u00A0", " ")
             .replace("-\n", "")
         )

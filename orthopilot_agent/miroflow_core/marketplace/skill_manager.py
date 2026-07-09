@@ -1,6 +1,6 @@
 """
-Skill 管理器 - 遵循 Agent Skills Marketplace 标准
-支持 Progressive Disclosure（渐进式加载）和热重载
+Skill - Agent Skills Marketplace
+ Progressive Disclosure(load)
 """
 
 from pathlib import Path
@@ -12,9 +12,9 @@ from watchdog.events import FileSystemEventHandler
 
 
 class SkillMetadata:
-    """Skill 元信息（用于 progressive disclosure 的第一阶段）"""
+    """Skill (progressive disclosure)"""
 
-    def __init__(self, name: str, description: str, path: Path, version: str = "1.0.0", category: str = "", icon: str = "⚡"):
+    def __init__(self, name: str, description: str, path: Path, version: str = "1.0.0", category: str = "", icon: str = "bolt"):
         self.name = name
         self.description = description
         self.path = path
@@ -23,11 +23,11 @@ class SkillMetadata:
         self.icon = icon
 
     def to_prompt_summary(self) -> str:
-        """生成用于 prompt 的简短摘要"""
-        return f"- {self.name} (v{self.version})\n  {self.description}\n  Path: {self.path}"
+        """generate prompt """
+        return f"- {self.name} (v{self.version})\n {self.description}\n Path: {self.path}"
 
     def dict(self):
-        """转换为字典"""
+        """"""
         return {
             "name": self.name,
             "description": self.description,
@@ -39,13 +39,13 @@ class SkillMetadata:
 
 
 class SkillDefinition:
-    """Skill 完整定义（按需加载）"""
+    """Skill (load)"""
 
     def __init__(self, skill_dir: Path, lang: str = "en"):
         self.skill_dir = skill_dir
         self.skill_md_path = self._resolve_skill_md_path(skill_dir, lang)
 
-        # 解析 SKILL.md 文件
+        # SKILL.md file
         self.metadata, self.content = self._parse_skill_md()
 
     def _resolve_skill_md_path(self, skill_dir: Path, lang: str) -> Path:
@@ -67,13 +67,13 @@ class SkillDefinition:
         return english_path if normalized == "en" else localized_path
 
     def _parse_skill_md(self) -> tuple:
-        """解析 SKILL.md 文件，提取 metadata 和各层内容"""
+        """ SKILL.md file, metadata content"""
         if not self.skill_md_path.exists():
             return {}, {}
 
         content = self.skill_md_path.read_text(encoding='utf-8')
 
-        # 提取 YAML frontmatter (metadata)
+        # YAML frontmatter (metadata)
         metadata_match = re.match(r'^---\n(.*?)\n---\n(.*)$', content, re.DOTALL)
         if metadata_match:
             metadata_yaml = metadata_match.group(1)
@@ -83,7 +83,7 @@ class SkillDefinition:
             metadata = {}
             body = content
 
-        # 解析 Markdown 内容的各个层次
+        # Markdown content
         parsed_content = {
             'description': self._extract_section(body, 'Description'),
             'system_prompt': self._extract_section(body, 'System Prompt'),
@@ -91,13 +91,13 @@ class SkillDefinition:
             'examples': self._extract_section(body, 'Examples'),
             'reference': self._extract_section(body, 'Reference'),
             'assets': self._extract_section(body, 'Assets'),
-            'full_content': body  # 保存完整内容用于注入
+            'full_content': body  # savecontent
         }
 
         return metadata, parsed_content
 
     def _extract_section(self, content: str, section_name: str) -> str:
-        """从 Markdown 中提取指定章节的内容"""
+        """ Markdown specified content"""
         pattern = rf'## {section_name}\n(.*?)(?=\n## |\Z)'
         match = re.search(pattern, content, re.DOTALL)
         return match.group(1).strip() if match else ""
@@ -120,35 +120,35 @@ class SkillDefinition:
 
     @property
     def full_content(self) -> str:
-        """返回完整的 SKILL.md 内容（用于按需加载）"""
+        """ SKILL.md content(load)"""
         return self.content.get('full_content', '')
 
 
 class SkillManager:
-    """Skill 管理器 - 支持 Progressive Disclosure 和热重载"""
+    """Skill - Progressive Disclosure """
 
     def __init__(self, skills_dir: Path = None):
-        # Skills 目录
+        # Skills
         self.skills_dir = skills_dir or Path("skills")
 
-        # Skill 元信息注册表 (name -> SkillMetadata) - 始终加载
+        # Skill (name -> SkillMetadata) - load
         self.skill_metadata: Dict[str, SkillMetadata] = {}
         self.skill_dirs: Dict[str, Path] = {}
 
-        # Skill 完整定义缓存 ((name, lang) -> SkillDefinition) - 按需加载
+        # Skill ((name, lang) -> SkillDefinition) - load
         self.skill_definitions: Dict[tuple[str, str], SkillDefinition] = {}
 
-        # 文件监控器（用于热重载）
+        # file()
         self.observer = None
 
-        # 加载所有 Skills 的元信息
+        # load Skills
         self._load_all_metadata()
 
-        # 启动热重载监控
+        #
         self._start_hot_reload()
 
     def _load_all_metadata(self):
-        """加载所有 Skills 的元信息（只读取 YAML frontmatter）"""
+        """load Skills (YAML frontmatter)"""
         if not self.skills_dir.exists():
             print(f"Skills directory {self.skills_dir} does not exist, creating it...")
             self.skills_dir.mkdir(parents=True, exist_ok=True)
@@ -191,18 +191,18 @@ class SkillManager:
             path=skill_dir,
             version=metadata.get('version', '1.0.0'),
             category=metadata.get('category', ''),
-            icon=metadata.get('icon', '⚡'),
+            icon=metadata.get('icon', 'bolt'),
         )
 
     def get_skill_metadata(self, skill_name: str, lang: str = 'en') -> Optional[SkillMetadata]:
-        """获取 Skill 元信息（不触发完整加载）"""
+        """ Skill (load)"""
         skill_dir = self.skill_dirs.get(skill_name)
         if not skill_dir:
             return None
         return self._load_skill_metadata(skill_dir, lang=lang)
 
     def load_skill_full(self, skill_name: str, lang: str = 'en') -> Optional[SkillDefinition]:
-        """按需加载 Skill 的完整定义"""
+        """load Skill """
         cache_key = (skill_name, (lang or 'en').lower())
         if cache_key in self.skill_definitions:
             return self.skill_definitions[cache_key]
@@ -221,14 +221,14 @@ class SkillManager:
             return None
 
     def list_skills(self, category: Optional[str] = None, lang: str = 'en') -> List[SkillMetadata]:
-        """列出所有 Skills 的元信息"""
+        """ Skills """
         skills = [self._load_skill_metadata(skill_dir, lang=lang) for skill_dir in self.skill_dirs.values()]
         if category:
             skills = [s for s in skills if s.category == category]
         return skills
 
     def list_skills_summary(self, category: Optional[str] = None, lang: str = 'en') -> str:
-        """生成所有 Skills 的摘要（用于注入到 system prompt）"""
+        """generate Skills (system prompt)"""
         skills = self.list_skills(category, lang=lang)
 
         if not skills:
@@ -241,7 +241,7 @@ class SkillManager:
         return summary
 
     def resolve_dependencies(self, skill_name: str) -> List[str]:
-        """解析 Skill 的工具依赖（支持 semver）"""
+        """ Skill (semver)"""
         skill = self.load_skill_full(skill_name, lang='en')
         if not skill:
             return []
@@ -250,20 +250,20 @@ class SkillManager:
         resolved_tools = []
 
         for dep in tool_deps:
-            # 解析 "tool-name@^1.0.0" 格式
+            # "tool-name@^1.0.0"
             if "@" in dep:
                 tool_name, version_spec = dep.split("@", 1)
             else:
                 tool_name = dep
                 version_spec = "*"
 
-            # TODO: 实现版本匹配逻辑
+            # TODO:
             resolved_tools.append(tool_name)
 
         return resolved_tools
 
     def _start_hot_reload(self):
-        """启动热重载监控"""
+        """"""
         class SkillReloadHandler(FileSystemEventHandler):
             def __init__(self, skill_manager):
                 self.skill_manager = skill_manager
@@ -271,7 +271,7 @@ class SkillManager:
             def on_modified(self, event):
                 if event.src_path.endswith("SKILL.md") or event.src_path.endswith("SKILL.en.md"):
                     print(f"Detected skill change: {event.src_path}")
-                    # 清除缓存，重新加载元信息
+                    #, load
                     self.skill_manager.skill_definitions.clear()
                     self.skill_manager._load_all_metadata()
 
@@ -284,17 +284,17 @@ class SkillManager:
             print(f"Started hot reload monitoring for {self.skills_dir}")
 
     def inject_skill_to_context(self, base_prompt: str, skill_name: str) -> str:
-        """将指定 Skill 的完整内容注入到上下文（按需加载）"""
+        """specified Skill content(load)"""
         skill = self.load_skill_full(skill_name, lang='en')
         if not skill:
             return base_prompt
 
-        # 注入完整的 SKILL.md 内容
+        # SKILL.md content
         skill_content = f"\n\n# Active Skill: {skill.name}\n\n{skill.full_content}"
         return base_prompt + skill_content
 
     def stop(self):
-        """停止热重载监控"""
+        """"""
         if self.observer:
             self.observer.stop()
             self.observer.join()

@@ -10,7 +10,7 @@ from mcp.client.session import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 import os
 
@@ -68,7 +68,7 @@ class PlaywrightSession:
 # Example usage:
 async def test_persistent_session():
     # Create a persistent session
-    mcp_session = PlaywrightSession("http://YOUR_HOST:YOUR_PORT")
+    mcp_session = PlaywrightSession("http://localhost:8000")
 
     try:
         # First call: Navigate to a website

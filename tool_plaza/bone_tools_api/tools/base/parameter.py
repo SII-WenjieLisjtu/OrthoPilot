@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 @dataclass
 class ToolParameter:
-    """工具参数定义
-
-    type支持: string, number, integer, boolean, array, object
     """
+
+ type: string, number, integer, boolean, array, object
+ """
 
     name: str
     type: str
@@ -19,7 +19,7 @@ class ToolParameter:
     properties: Optional[dict] = None
 
     def to_schema(self) -> dict[str, Any]:
-        """转换为OpenAI function calling schema"""
+        """OpenAI function calling schema"""
         schema = {
             "type": self.type,
             "description": self.description,

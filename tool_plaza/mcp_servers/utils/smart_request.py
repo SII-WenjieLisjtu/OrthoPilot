@@ -30,12 +30,12 @@ async def smart_request(url: str, params: dict = None, env: dict = None) -> str:
     if env:
         JINA_API_KEY = env.get("JINA_API_KEY", "")
         SERPER_API_KEY = env.get("SERPER_API_KEY", "")
-        JINA_BASE_URL = env.get("JINA_BASE_URL", "https://YOUR_READER_API_URL")
+        JINA_BASE_URL = env.get("JINA_BASE_URL", "https://r.jina.ai/http://")
     else:
         JINA_API_KEY = ""
         SERPER_API_KEY = ""
 
-    if JINA_API_KEY == "" and SERPER_API_KEY == "":
+    if not JINA_API_KEY and not SERPER_API_KEY:
         return "[ERROR]: JINA_API_KEY and SERPER_API_KEY are not set, smart_request is not available."
 
     IS_MIRO_API = True if "miro" in JINA_BASE_URL else False
@@ -71,7 +71,7 @@ async def smart_request(url: str, params: dict = None, env: dict = None) -> str:
             content, jina_err = await scrape_jina(url, JINA_API_KEY, JINA_BASE_URL)
             if jina_err:
                 error_msg += f"Failed to get content from Jina.ai: {jina_err}\n"
-            elif content is None or content.strip() == "":
+            elif content is None or not content.strip():
                 error_msg += "No content got from Jina.ai.\n"
             else:
                 return protocol_hint + youtube_hint + content
@@ -82,7 +82,7 @@ async def smart_request(url: str, params: dict = None, env: dict = None) -> str:
                 content, serper_err = await scrape_serper(url, SERPER_API_KEY)
                 if serper_err:
                     error_msg += f"Failed to get content from SERPER: {serper_err}\n"
-                elif content is None or content.strip() == "":
+                elif content is None or not content.strip():
                     error_msg += "No content got from SERPER.\n"
                 else:
                     return protocol_hint + youtube_hint + content
@@ -90,7 +90,7 @@ async def smart_request(url: str, params: dict = None, env: dict = None) -> str:
             content, request_err = scrape_request(url)
             if request_err:
                 error_msg += f"Failed to get content from requests: {request_err}\n"
-            elif content is None or content.strip() == "":
+            elif content is None or not content.strip():
                 error_msg += "No content got from requests.\n"
             else:
                 return protocol_hint + youtube_hint + content
@@ -108,8 +108,8 @@ async def smart_request(url: str, params: dict = None, env: dict = None) -> str:
 async def scrape_jina(
     url: str, jina_api_key: str, jina_base_url: str
 ) -> tuple[str, str]:
-    # Use Jina.ai reader API to convert URL to LLM-friendly text
-    if jina_api_key == "":
+    # Use Jina.ai reader API to convert URL to LLM-friendly
+    if not jina_api_key:
         return (
             None,
             "JINA_API_KEY is not set, JINA scraping is not available.",
@@ -155,10 +155,10 @@ async def scrape_jina(
 
 async def scrape_serper(url: str, serper_api_key: str) -> tuple[str, str]:
     """This function uses SERPER for scraping a website.
-    Args:
-        url: The URL of the website to scrape.
-    """
-    if serper_api_key == "":
+ Args:
+ url: The URL of the website to scrape.
+ """
+    if not serper_api_key:
         return (
             None,
             "SERPER_API_KEY is not set, SERPER scraping is not available.",
@@ -186,9 +186,9 @@ async def scrape_serper(url: str, serper_api_key: str) -> tuple[str, str]:
 
 def scrape_request(url: str) -> tuple[str, str]:
     """This function uses requests to scrape a website.
-    Args:
-        url: The URL of the website to scrape.
-    """
+ Args:
+ url: The URL of the website to scrape.
+ """
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -202,7 +202,7 @@ def scrape_request(url: str) -> tuple[str, str]:
             content = md.convert_stream(stream).text_content
             return content, None
         except Exception:
-            # If MarkItDown conversion fails, return raw response text
+            # If MarkItDown conversion fails, return raw response
             return response.text, None
 
     except Exception as e:

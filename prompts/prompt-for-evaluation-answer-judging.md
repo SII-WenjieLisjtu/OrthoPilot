@@ -1,7 +1,7 @@
 # Prompt for Evaluation Answer Judging
 
 **Source files**
-- `/path/to/orthopilot/gen_validation/task_all_gen_async.py`
+- `oracle/task_all_gen_async.py`
 
 ## Rewritten prompt
 You are given a student answer and an evaluation rubric for one clinical task. For every rubric item, determine whether the student answer covers that content.

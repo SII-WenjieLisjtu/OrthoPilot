@@ -22,9 +22,9 @@ from typing import Any, Dict, List
 from omegaconf import DictConfig
 from openai import AsyncOpenAI, OpenAI
 
-from src.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
 logger = bootstrap_logger(level=LOGGER_LEVEL)
@@ -53,12 +53,12 @@ class ClaudeNewAPIClient(LLMProviderClientBase):
         keep_tool_result: int = -1,
     ):
         """
-        Send message to OpenAI API.
-        :param system_prompt: System prompt string.
-        :param messages: Message history list.
-        :return: OpenAI API response object or None (if error).
-        TODO: test claude with this
-        """
+ Send message to OpenAI API.
+:param system_prompt: System prompt string.
+:param messages: Message history list.
+:return: OpenAI API response object or None (if error).
+ TODO: test claude with this
+ """
         logger.debug(f" Calling LLM ({'async' if self.async_client else 'sync'})")
         # put the system prompt in the first message since OpenAI API does not support system prompt in
         if system_prompt:
@@ -136,18 +136,18 @@ class ClaudeNewAPIClient(LLMProviderClientBase):
             logger.debug(f"Error: {error_msg}")
             return "", True  # Exit loop
 
-        # Extract LLM response text
+        # Extract LLM response
         if llm_response.choices[0].finish_reason == "stop":
             assistant_response_text = llm_response.choices[0].message.content or ""
             message_history.append(
                 {"role": "assistant", "content": assistant_response_text}
             )
         elif llm_response.choices[0].finish_reason == "tool_calls":
-            # For tool_calls, we need to extract tool call information as text
+            # For tool_calls, we need to extract tool call information as
             tool_calls = llm_response.choices[0].message.tool_calls
             assistant_response_text = llm_response.choices[0].message.content or ""
 
-            # If there's no text content, we generate a text describing the tool call
+            # If there's no content, we generate a describing the tool call
             if not assistant_response_text:
                 tool_call_descriptions = []
                 for tool_call in tool_calls:
@@ -175,7 +175,7 @@ class ClaudeNewAPIClient(LLMProviderClientBase):
             )
         elif llm_response.choices[0].finish_reason == "length":
             assistant_response_text = llm_response.choices[0].message.content or ""
-            if assistant_response_text == "":
+            if not assistant_response_text:
                 assistant_response_text = "LLM response is empty. This is likely due to thinking block used up all tokens."
             message_history.append(
                 {"role": "assistant", "content": assistant_response_text}
@@ -190,7 +190,7 @@ class ClaudeNewAPIClient(LLMProviderClientBase):
 
     def extract_tool_calls_info(self, llm_response, assistant_response_text):
         """Extract tool call information from OpenAI LLM response"""
-        from src.utils.parsing_utils import parse_llm_response_for_tool_calls
+        from orthopilot_agent.miroflow_core.utils.parsing_utils import parse_llm_response_for_tool_calls
 
         # For OpenAI, directly get tool calls from response object
         if llm_response.choices[0].finish_reason == "tool_calls":
@@ -217,7 +217,7 @@ class ClaudeNewAPIClient(LLMProviderClientBase):
         return message_history
 
     def parse_llm_response(self, llm_response) -> str:
-        """Parse OpenAI LLM response to get text content"""
+        """Parse OpenAI LLM response to get content"""
         if not llm_response or not llm_response.choices:
             raise ValueError("LLM did not return a valid response.")
         return llm_response.choices[0].message.content

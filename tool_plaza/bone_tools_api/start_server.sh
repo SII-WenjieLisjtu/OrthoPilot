@@ -1,28 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Tool Call API Server 启动脚本
-# source activate note
-cd /path/to/orthopilot/tool_plaza/bone_tools_api
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
-PORT=8766
-HOST="YOUR_HOST"
-WORKERS=20
+HOST="${HOST:-127.0.0.1}"
+PORT="${PORT:-8766}"
+WORKERS="${WORKERS:-1}"
+LOG_DIR="${LOG_DIR:-${SCRIPT_DIR}/logs}"
 
-echo "========================================"
-echo "Tool Call API Server"
-echo "========================================"
-echo ""
-echo "配置:"
-echo "  Host: $HOST"
-echo "  Port: $PORT"
-echo "  Workers: $WORKERS"
-echo ""
-echo "API文档: http://YOUR_HOST:YOUR_PORT"
-echo "========================================"
-echo ""
+mkdir -p "${LOG_DIR}"
 
-# 创建logs目录
-mkdir -p logs
+printf '%s\n' "Starting Tool Plaza API server"
+printf 'Host: %s\n' "${HOST}"
+printf 'Port: %s\n' "${PORT}"
+printf 'Workers: %s\n' "${WORKERS}"
+printf 'Logs: %s\n' "${LOG_DIR}"
+printf 'API URL: http://%s:%s\n' "${HOST}" "${PORT}"
 
-# 启动服务器
-uvicorn tool_server:app --host $HOST --port $PORT --workers $WORKERS
+exec uvicorn tool_server:app --host "${HOST}" --port "${PORT}" --workers "${WORKERS}"

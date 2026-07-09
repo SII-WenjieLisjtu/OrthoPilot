@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""o1_searcher_inference.py — Serper-based Search-o1 re-implementation
+"""o1_searcher_inference.py - Serper-based Search-o1 re-implementation
 with original summarisation workflow and small robustness fixes.
 
 Changes vs. previous:
@@ -43,7 +43,7 @@ ANSWER_OPEN, ANSWER_CLOSE = "<answer>", "</answer>"
 STOP_STRINGS = [END_SEARCH_QUERY, ANSWER_CLOSE, EOS_TOKEN, "<|endoftext|>"]
 ALLOWED_DATASETS = {"musique", "frames", "simpleqa", "browsercomp"}
 
-# ─────────────────────────  BASIC UTILS  ──────────────────────────────
+# ------------------------- BASIC UTILS ------------------------------
 def retry(max_attempts: int = 4, sleep: float = 1, fallback=None):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -67,7 +67,7 @@ def f1(a: set, b: set) -> float:
     return 0.0 if inter == 0 else 2 * inter / (len(a) + len(b))
 
 def extract_snippet_ctx(text: str, snippet: str, win: int = 2500) -> str:
-    """Return window-sized context around the sentence most similar to snippet."""
+    """Return window-sized con around the sentence most similar to snippet."""
     text = text[:50_000]
     sn_set = set(remove_punc(snippet.lower()).split())
     best, best_score = None, 0.20
@@ -89,7 +89,7 @@ class O1Cfg:
     top_k: int = 10; max_doc_len: int = 3000
     max_search: int = 10; max_turn: int = 15
     use_jina: bool = True
-    jina_tpl: str = "https://YOUR_READER_API_URL"
+    jina_tpl: str = "https://r.jina.ai/http://"
     # generation params
     temperature: float = 0.7; top_p: float = 0.8; top_k_sampling: int = 20
     rep_pen: float = 1.05; thinker_max_tokens: int = 32768
@@ -102,7 +102,7 @@ class O1Cfg:
 def serper_search(q: str, num: int, key: str, gl="us", hl="en") -> List[Dict]:
     hdr = {"X-API-KEY": key, "Content-Type": "application/json"}
     body = {"q": q, "num": num, "gl": gl, "hl": hl}
-    r = requests.post("https://YOUR_SEARCH_API_URL", json=body, headers=hdr, timeout=20)
+    r = requests.post("https://google.serper.dev/search", json=body, headers=hdr, timeout=20)
     r.raise_for_status()
     return r.json().get("organic", [])
 
@@ -113,7 +113,7 @@ def fetch_page(url: str, cfg: O1Cfg, snippet: str = "") -> str:
             r = requests.get(cfg.jina_tpl.format(url), timeout=15)
             if r.ok and len(r.text.strip()) > 100:
                 txt = r.text.strip()
-        if txt == "":
+        if not txt:
             r = requests.get(url, timeout=15); r.raise_for_status()
             txt = trafilatura.extract(r.text, output_format="txt") or ""
         if snippet:
@@ -147,64 +147,64 @@ def replace_recent_steps(origin: str, patch: str) -> str:
 class O1Searcher:
     get_webpage_to_reasonchain_instruction = """**Task Instruction:**
 
-    You are tasked with reading and analyzing web pages based on the following inputs: **Previous Reasoning Steps**, **Current Search Query**, and **Searched Web Pages**. Your objective is to extract relevant and helpful information for **Current Search Query** from the **Searched Web Pages** and seamlessly integrate this information into the **Previous Reasoning Steps** to continue reasoning for the original question.
+ You are tasked with reading and analyzing web pages based on the following inputs: **Previous Reasoning Steps**, **Current Search Query**, and **Searched Web Pages**. Your objective is to extract relevant and helpful information for **Current Search Query** from the **Searched Web Pages** and seamlessly integrate this information into the **Previous Reasoning Steps** to continue reasoning for the original question.
 
-    **Guidelines:**
+ **Guidelines:**
 
-    1. **Analyze the Searched Web Pages:**
-    - Carefully review the content of each searched web page.
-    - Identify factual information that is relevant to the **Current Search Query** and can aid in the reasoning process for the original question.
+ 1. **Analyze the Searched Web Pages:**
+ - Carefully review the content of each searched web page.
+ - Identify factual information that is relevant to the **Current Search Query** and can aid in the reasoning process for the original question.
 
-    2. **Extract Relevant Information:**
-    - Select the information from the Searched Web Pages that directly contributes to advancing the **Previous Reasoning Steps**.
-    - Ensure that the extracted information is accurate and relevant.
+ 2. **Extract Relevant Information:**
+ - Select the information from the Searched Web Pages that directly contributes to advancing the **Previous Reasoning Steps**.
+ - Ensure that the extracted information is accurate and relevant.
 
-    3. **Output Format:**
-    - **If the web pages provide helpful information for current search query:** Present the information beginning with **Final Information** as shown below.
-    **Final Information**
+ 3. **Output Format:**
+ - **If the web pages provide helpful information for current search query:** Present the information beginning with **Final Information** as shown below.
+ **Final Information**
 
-    [Helpful information]
+ [Helpful information]
 
-    - **If the web pages do not provide any helpful information for current search query:** Output the following text.
+ - **If the web pages do not provide any helpful information for current search query:** Output the following.
 
-    **Final Information**
+ **Final Information**
 
-    No helpful information found.
+ No helpful information found.
 
-    **Inputs:**
-    - **Previous Reasoning Steps:**  
-    {prev_reasoning}
+ **Inputs:**
+ - **Previous Reasoning Steps:**
+ {prev_reasoning}
 
-    - **Current Search Query:**  
-    {search_query}
+ - **Current Search Query:**
+ {search_query}
 
-    - **Searched Web Pages:**  
-    {document}
+ - **Searched Web Pages:**
+ {document}
 
-    Now you should analyze each web page and find helpful information based on the current search query {search_query} and previous reasoning steps.
-    Return the Helpful information in the <information></information> tags
-    """
+ Now you should analyze each web page and find helpful information based on the current search query {search_query} and previous reasoning steps.
+ Return the Helpful information in the <information></information> tags
+ """
     SUMMARY_PROMPT = (
         """## Task Description:\n"
-        "Given the search query and the content of the searched webpage, "
-        "extract information relevant to the query and write one summary paragraph."\n\n"
-        "## Guideline:\n"
-        "(1) The extracted content should be relevant to the query.\n"
-        "(2) The form of the extracted content **must be a summary paragraph** rather than a direct answer.\n"
-        "(3) If the webpage content is unrelated to the query, output \"None\".\n\n"
-        "## Output Format:\n"
-        "[Exacted Content]: <summary‑paragraph‑or‑None>\n\n"
-        "## Input:\n"
-        "[Search Query]\n{search_query}\n\n"
-        "[Webpage Content]\n{document}\n\n"
-        "## Output:\n"""
+ "Given the search query and the content of the searched webpage, "
+ "extract information relevant to the query and write one summary paragraph."\n\n"
+ "## Guideline:\n"
+ "(1) The extracted content should be relevant to the query.\n"
+ "(2) The form of the extracted content **must be a summary paragraph** rather than a direct answer.\n"
+ "(3) If the webpage content is unrelated to the query, output \"None\".\n\n"
+ "## Output Format:\n"
+ "[Exacted Content]: <summary-paragraph-or-None>\n\n"
+ "## Input:\n"
+ "[Search Query]\n{search_query}\n\n"
+ "[Webpage Content]\n{document}\n\n"
+ "## Output:\n"""
     )
 
     sys_prompt_multiqa = (
         "You are a reasoning assistant with the ability to perform web searches to help "
         "you answer the user's question accurately. You have special tools:\n"
         "- To perform a search: write <|begin_search_query|> your query here <|end_search_query|>.\n"
-        "Then, the system will search and analyze relevant web pages, then provide you with helpful information in the format <|begin_search_result|> ...search results... <|end_search_result|>.\n\n"
+        "Then, the system will search and analyze relevant web pages, then provide you with helpful information in the format <|begin_search_result|>...search results... <|end_search_result|>.\n\n"
         f"You can repeat the search process multiple times if necessary. The maximum number of search attempts is limited to 16.\n\n"
         "Once you have all the information you need, continue your reasoning.\n\n"
         "Example:\n"
@@ -226,7 +226,7 @@ class O1Searcher:
         "Always give you final answer between <answer></answer> tags"
     )
 
-   
+
     def __init__(self, cfg: O1Cfg, thinker_url: str):
         if not cfg.serper_api_key:
             raise ValueError("SERPER_API_KEY required")
@@ -266,8 +266,7 @@ class O1Searcher:
             timeout=60,
         ).json()
         print(resp)
-        # return resp.get("text", "")
-        generated = resp["text"]               
+        generated = resp.get("text") or resp.get("content", "")
         matched   = resp["meta_info"]["finish_reason"].get("matched")
         reason = resp["meta_info"]["finish_reason"].get("type")
 
@@ -305,12 +304,11 @@ class O1Searcher:
             },
             timeout=60,
         ).json()
-        # return resp.get("text", "")
-        generated = resp["text"]                       # what you have now
+        generated = resp.get("text") or resp.get("content", "")                       # what you have now
         matched   = resp["meta_info"]["finish_reason"].get("matched")
         reason = resp["meta_info"]["finish_reason"].get("type")
-  
-        # ⇢ append the tag back only if it was removed
+
+        # -> append the tag back only if it was removed
         if reason == "stop" and matched in STOP_STRINGS:
             if not "<|end_of_query|>" in generated:
                 generated += matched
@@ -320,7 +318,7 @@ class O1Searcher:
         if reason == "stop" and matched == 151643:
              if not generated.endswith("<|endoftext|>"):
                 generated += "<|endoftext|>"
-        
+
         return generated
 
     def _summarise_openai(self, query: str, doc: str) -> str:
@@ -381,7 +379,7 @@ class O1Searcher:
         if BEGIN_SEARCH_QUERY not in txt or END_SEARCH_QUERY not in txt:
             return None
         frag = txt.split(BEGIN_SEARCH_QUERY)[-1].split(END_SEARCH_QUERY)[0]
-        return re.sub(r'[\"\'…\t]', " ", frag.split("<|")[0]).strip()
+        return re.sub(r'[\"\'...\t]', " ", frag.split("<|")[0]).strip()
 
     def _retrieve_doc(self, query: str) -> str:
         if query not in self.search_cache:

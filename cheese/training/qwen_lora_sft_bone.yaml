@@ -1,7 +1,7 @@
 ### model
-# model_name_or_path: /path/to/storage
-model_name_or_path: /path/to/storage
-# model_name_or_path: /path/to/storage
+# model_name_or_path: data/storage
+model_name_or_path: data/storage
+# model_name_or_path: data/storage
 trust_remote_code: true
 
 ### method
@@ -24,7 +24,7 @@ overwrite_cache: true
 preprocessing_num_workers: 16
 
 ### output
-output_dir: /path/to/storage
+output_dir: data/storage
 logging_steps: 1
 save_steps: 70
 plot_loss: true
@@ -34,8 +34,8 @@ overwrite_output_dir: true
 per_device_train_batch_size: 2
 # per_device_train_batch_size: 1
 gradient_accumulation_steps: 8
-learning_rate: 1.0e-4       ### initial learning rate 
-# learning_rate: 5.0e-5     
+learning_rate: 1.0e-4 ### initial learning rate
+# learning_rate: 5.0e-5
 num_train_epochs: 3.0
 lr_scheduler_type: cosine
 warmup_ratio: 0.1

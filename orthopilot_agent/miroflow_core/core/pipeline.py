@@ -8,13 +8,13 @@ import os
 from datetime import datetime
 from omegaconf import DictConfig
 
-from src.llm.client import LLMClient
-from src.logging.logger import bootstrap_logger
-from src.logging.task_tracer import TaskTracer
-from src.core.orchestrator import Orchestrator
-from src.tool.manager import ToolManager
-from src.utils.io_utils import OutputFormatter
-from src.utils.tool_utils import create_mcp_server_parameters
+from orthopilot_agent.miroflow_core.llm.client import LLMClient
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.task_tracer import TaskTracer
+from orthopilot_agent.miroflow_core.core.orchestrator import Orchestrator
+from orthopilot_agent.miroflow_core.tool.manager import ToolManager
+from orthopilot_agent.miroflow_core.utils.io_utils import OutputFormatter
+from orthopilot_agent.miroflow_core.utils.tool_utils import create_mcp_server_parameters
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
 logger = bootstrap_logger(level=LOGGER_LEVEL)
@@ -36,30 +36,30 @@ async def execute_task_pipeline(
     task_tracer: TaskTracer | None = None,
 ) -> tuple[str, str, pathlib.Path]:
     """
-    Executes the full pipeline for a single task.
+ Executes the full pipeline for a single task.
 
-    Args:
-        cfg: The Hydra configuration object.
-        task_description: The description of the task for the LLM.
-        task_file_name: The path to an associated file (optional).
-        task_id: A unique identifier for this task run (used for logging).
-        main_agent_tool_manager: An initialized main agent ToolManager instance.
-        sub_agent_tool_managers: A dictionary of initialized sub-agent ToolManager instances.
-        output_formatter: An initialized OutputFormatter instance.
-        ground_truth: The ground truth for the task (optional).
-        log_dir: The directory to save the task log (default: "logs").
-        task_tracer: An optional externally-created TaskTracer (e.g. StreamingTaskTracer).
-                     If None, a default TaskTracer is created.
+ Args:
+ cfg: The Hydra configuration object.
+ task_description: The description of the task for the LLM.
+ task_file_name: The path to an associated file (optional).
+ task_id: A unique identifier for this task run (used for logging).
+ main_agent_tool_manager: An initialized main agent ToolManager instance.
+ sub_agent_tool_managers: A dictionary of initialized sub-agent ToolManager instances.
+ output_formatter: An initialized OutputFormatter instance.
+ ground_truth: The ground truth for the task (optional).
+ log_dir: The directory to save the task log (default: "logs").
+ task_tracer: An optional externally-created TaskTracer (e.g. StreamingTaskTracer).
+ If None, a default TaskTracer is created.
 
-    Returns:
-        A tuple containing:
-        - A string with the final execution log and summary, or an error message.
-        - The final boxed answer.
-        - The path to the log file.
-    """
+ Returns:
+ A tuple containing:
+ - A string with the final execution log and summary, or an error message.
+ - The final boxed answer.
+ - The path to the log file.
+ """
     logger.debug(f"Starting Task Execution: {task_id}")
 
-    # Create task log — use injected tracer or create default
+    # Create task log - use injected tracer or create default
     if task_tracer is not None:
         task_log = task_tracer
     else:
@@ -176,17 +176,17 @@ def create_pipeline_components(
     user_config_mgr=None,
 ):
     """
-    Creates and initializes the core components of the agent pipeline.
+ Creates and initializes the core components of the agent pipeline.
 
-    Args:
-        cfg: The Hydra configuration object.
-        logs_dir: Optional directory for logs.
-        session_id: Session ID for loading user-specific tool configuration.
-        user_config_mgr: UserConfigManager instance for reading user preferences.
+ Args:
+ cfg: The Hydra configuration object.
+ logs_dir: Optional directory for logs.
+ session_id: Session ID for loading user-specific tool configuration.
+ user_config_mgr: UserConfigManager instance for reading user preferences.
 
-    Returns:
-        Tuple of (main_agent_tool_manager, sub_agent_tool_managers, output_formatter)
-    """
+ Returns:
+ Tuple of (main_agent_tool_manager, sub_agent_tool_managers, output_formatter)
+ """
     # Create ToolManagers for main agent (always uses static YAML config)
     main_agent_mcp_server_configs, main_agent_blacklist = create_mcp_server_parameters(
         cfg, cfg.main_agent, logs_dir

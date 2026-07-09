@@ -2,17 +2,17 @@
 """End-to-end inference loop that emulates the ZeroSearch prompting style.
 
 The policy model ("thinker") must:
-    • reason inside <think> … </think>
-    • place a query inside <search> … </search> whenever it needs external knowledge
-    • return the final short answer inside <answer> … </answer>
+ - reason inside <think> ... </think>
+ - place a query inside <search> ... </search> whenever it needs external knowledge
+ - return the final short answer inside <answer> ... </answer>
 
 The wrapper intercepts each <search> request, fulfils it with either:
-    (a) a simulated search engine (LLM retriever), or
-    (b) a real search backend (Serper.dev) if engine="real".
+ (a) a simulated search engine (LLM retriever), or
+ (b) a real search backend (Serper.dev) if engine="real".
 
 Tokenizer handling:
-    - No hard-coded tokenizer path.
-    - Pass an HF tokenizer from the harness (optional). Budgeting falls back if None.
+ - No hard-coded tokenizer path.
+ - Pass an HF tokenizer from the harness (optional). Budgeting falls back if None.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from openai import OpenAI
 
 __all__ = ["ZeroSearchInference", "ZeroSearchConfig"]
 
-# ───────────────────────── retry ─────────────────────────
+# ------------------------- retry -------------------------
 def retry(max_attempts: int = 4, sleep: float = 1, fallback=None):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -41,7 +41,7 @@ def retry(max_attempts: int = 4, sleep: float = 1, fallback=None):
         return wrapper
     return decorator
 
-# ───────────────────────── OpenAI client (thread-local) ─────────────────────
+# ------------------------- OpenAI client (thread-local) ---------------------
 import threading
 def _oa() -> OpenAI:
     th = threading.current_thread()
@@ -49,11 +49,11 @@ def _oa() -> OpenAI:
         th._oa = OpenAI()  # uses OPENAI_API_KEY from env
     return th._oa
 
-# ───────────────────────── config ─────────────────────────
+# ------------------------- config -------------------------
 @dataclass
 class ZeroSearchConfig:
     # thinker LLM endpoint
-    thinker_url: str = "http://YOUR_HOST:YOUR_PORT"
+    thinker_url: str = "http://localhost:8000"
     thinker_temperature: float = 0.7
     thinker_max_tokens: int = 40960
 
@@ -66,13 +66,13 @@ class ZeroSearchConfig:
 
     # real search (engine == "real")
     serper_api_key: Optional[str] = os.getenv("SERPER_API_KEY", None)
-    serper_url: str = "https://YOUR_SEARCH_API_URL"
+    serper_url: str = "https://google.serper.dev/search"
     serper_top_k: int = 5
 
     # loop
     max_rounds: int = 16
 
-# ───────────────────────── main wrapper ─────────────────────────
+# ------------------------- main wrapper -------------------------
 class ZeroSearchInference:
     SEARCH_OPEN = "<search>"
     SEARCH_CLOSE = "</search>"
@@ -93,11 +93,11 @@ class ZeroSearchInference:
         self.openai = _oa()
         self.tokenizer = None  # set in run()
 
-    # public API — remains ABI-compatible
+    # public API - remains ABI-compatible
     def run(self, user_question: str, tokenizer=None):
         """Run the ZeroSearch loop.
-        tokenizer: optional HF tokenizer passed from the harness.
-        """
+ tokenizer: optional HF tokenizer passed from the harness.
+ """
         self.tokenizer = tokenizer
         tool_calls: List[str] = []
 
@@ -122,7 +122,7 @@ class ZeroSearchInference:
 
         return prompt, tool_calls
 
-    # ───────── prompt helpers ─────────
+    # --------- prompt helpers ---------
     def _build_initial_prompt(self, question: str) -> str:
         user_msg = (
             "Answer the given question. "
@@ -135,7 +135,7 @@ class ZeroSearchInference:
         )
         return f"<|im_start|>user\n{user_msg}<|im_end|>\n<|im_start|>assistant\n{self.THINK_OPEN}"
 
-    # ───────── thinker call ─────────
+    # --------- thinker call ---------
     @retry(fallback="")
     def _call_thinker(self, prompt: str, tokenizer) -> str:
         # budget tokens if tokenizer is available
@@ -148,7 +148,7 @@ class ZeroSearchInference:
         else:
             max_left = 8192
 
-       
+
         resp = requests.post(
             f"{self.cfg.thinker_url}/generate",
             json={
@@ -158,15 +158,15 @@ class ZeroSearchInference:
                     "max_new_tokens": max_left,
                     "stop": self.STOP_TOKENS,
                 },
-                
+
             },
             timeout=60,
         ).json()
         print(resp)
-        generated = resp["text"]                       # what you have now
+        generated = resp.get("text") or resp.get("content", "")                       # what you have now
         matched   = resp["meta_info"]["finish_reason"].get("matched")
         reason = resp["meta_info"]["finish_reason"].get("type")
-        # ⇢ append the tag back only if it was removed
+        # -> append the tag back only if it was removed
         if reason == "stop" and matched in self.STOP_TOKENS:
             if not generated.endswith(matched):
                 generated += matched
@@ -176,14 +176,14 @@ class ZeroSearchInference:
         return generated
 
 
-    # ───────── query extraction ─────────
+    # --------- query extraction ---------
     def _extract_query(self, gen_text: str) -> Optional[str]:
         if self.SEARCH_OPEN not in gen_text or self.SEARCH_CLOSE not in gen_text:
             return None
         q = gen_text.split(self.SEARCH_OPEN)[-1].split(self.SEARCH_CLOSE)[0].strip()
         return q or None
 
-    # ───────── retrieval ─────────
+    # --------- retrieval ---------
     def _retrieve_and_format(self, query: str) -> str:
         if self.cfg.engine == "real":
             docs = self._real_search(query)

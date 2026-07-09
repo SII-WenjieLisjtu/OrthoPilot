@@ -1,8 +1,8 @@
 # Prompt for Evaluation Criteria Generation
 
 **Source files**
-- `/path/to/orthopilot/gen_validation/task_all_gen_async.py`
-- `/path/to/orthopilot/gen_validation/API_fast.py`
+- `oracle/task_all_gen_async.py`
+- `oracle/API_fast.py`
 
 ## Rewritten prompt
 Given a reference answer for a specific clinical task, extract the complete scoring rubric under the predefined concern categories for that task.

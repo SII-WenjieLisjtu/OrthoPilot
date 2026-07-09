@@ -20,12 +20,12 @@ def web_visit(url):
 def web_fetch(url):
     return open_url(url = url, compress = False)
 
-# ── 1. search_urls ──────────────────────────────────────────────────────
+# -- 1. search_urls ------------------------------------------------------
 def search_urls(query: str, top_k: int = 10) -> str:
     # breakpoint()
     return url_hits_to_markdown(google_search(query, top_k))
 
-# ── 2. open_url ─────────────────────────────────────────────────────────
+# -- 2. open_url ---------------------------------------------------------
 def open_url(url: str, *, compress: bool = True, pct: float = CFG.pct,
              model: str = "gpt-4o-mini") -> str:
     # breakpoint()
@@ -44,7 +44,7 @@ def open_url(url: str, *, compress: bool = True, pct: float = CFG.pct,
             body = f"[compression failed: {e}]\n\n{body[:2000]}"
     return body
 
-# ── 3. search_and_parse_query ───────────────────────────────────────────
+# -- 3. search_and_parse_query -------------------------------------------
 def search_and_parse_query(query: str, top_k: int = 3, *,
                            compress: bool = True, pct: float = CFG.pct) -> str:
     blocks = asyncio.run(async_search_and_extract(query, top_k))
@@ -59,7 +59,7 @@ def search_and_parse_query(query: str, top_k: int = 3, *,
                 b["body"] = f"[compression failed: {e}]\n\n{b['body']}"
     return search_result_to_markdown(blocks)
 
-# ── 4. query_url ────────────────────────────────────────────────────────
+# -- 4. query_url --------------------------------------------------------
 def query_url(url: str, goal: str) -> str:
     query_llm = CFG.query_llm
     if _bad(url): return _bad(url)
@@ -67,5 +67,5 @@ def query_url(url: str, goal: str) -> str:
     if not body or body.startswith("[error"):
         return f"[failed to retrieve content from {url}]\n\n{body}"
     return query_text(url, body, goal, model=query_llm)['extracted_info']
-    
+
 

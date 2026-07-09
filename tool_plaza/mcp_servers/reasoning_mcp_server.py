@@ -8,16 +8,16 @@ from anthropic import Anthropic
 from fastmcp import FastMCP
 from openai import OpenAI
 import asyncio
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://YOUR_ANTHROPIC_BASE_URL")
+ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 ANTHROPIC_MODEL_NAME = os.environ.get(
     "ANTHROPIC_MODEL_NAME", "claude-3-7-sonnet-20250219"
 )
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENAI_MODEL_NAME = os.environ.get("OPENAI_MODEL_NAME", "o3")
 
 # Initialize FastMCP server
@@ -27,25 +27,25 @@ mcp = FastMCP("reasoning-mcp-server")
 
 @mcp.tool()
 async def reasoning(question: str) -> str:
-    """This tool is for pure text-based reasoning, analysis, and logical thinking. It integrates collected information, organizes final logic, and provides planning insights.
+    """This tool is for pure -based reasoning, analysis, and logical thinking. It integrates collected information, organizes final logic, and provides planning insights.
 
-    IMPORTANT: This tool cannot access the internet, read files, program, or process multimodal content. It only performs pure text reasoning.
+ IMPORTANT: This tool cannot access the internet, read files, program, or process multimodal content. It only performs pure reasoning.
 
-    Use this tool for:
-    - Integrating and synthesizing collected information
-    - Analyzing patterns and relationships in data
-    - Logical reasoning and problem-solving
-    - Planning and strategy development
-    - Complex math problems, puzzles, riddles, and IQ tests
+ Use this tool for:
+ - Integrating and synthesizing collected information
+ - Analyzing patterns and relationships in data
+ - Logical reasoning and problem-solving
+ - Planning and strategy development
+ - Complex math problems, puzzles, riddles, and IQ tests
 
-    DO NOT use this tool for simple and obvious questions.
+ DO NOT use this tool for simple and obvious questions.
 
-    Args:
-        question: The complex question or problem requiring step-by-step reasoning. Should include all relevant information needed to solve the problem.
+ Args:
+ question: The complex question or problem requiring step-by-step reasoning. Should include all relevant information needed to solve the problem.
 
-    Returns:
-        The reasoned answer to the question.
-    """
+ Returns:
+ The reasoned answer to the question.
+ """
 
     messages_for_llm = [
         {

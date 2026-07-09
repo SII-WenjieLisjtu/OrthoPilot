@@ -13,7 +13,7 @@ from config import CFG
 from web_helpers import retry
 import requests
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # 0. shared helpers
 # ------------------------------------------------------------------------
 enc = tiktoken.get_encoding("cl100k_base")
@@ -33,7 +33,7 @@ def _openai_client():
     return getattr(mod, "OpenAI", None)() if hasattr(mod, "OpenAI") else mod
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # Together helpers (SDK first, requests fallback)
 # ------------------------------------------------------------------------
 def _together_api_key() -> str:
@@ -44,7 +44,7 @@ def _together_api_key() -> str:
 
 
 def _together_client():
-    """Return a Together SDK client if available; else None (we’ll fallback to requests)."""
+    """Return a Together SDK client if available; else None (we'll fallback to requests)."""
     try:
         import importlib
         mod = importlib.import_module("together")
@@ -55,7 +55,7 @@ def _together_client():
         return None
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # 1. regex patterns (compiled once)
 # ------------------------------------------------------------------------
 DATE_PATS = [re.compile(p, re.I) for p in [
@@ -69,7 +69,7 @@ DATE_PATS = [re.compile(p, re.I) for p in [
 EMAIL_PAT = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
 URL_PAT = re.compile(r"https?://[^\s\)]+")
 PHONE_PAT = re.compile(r"\+?\d[\d\s\-().]{7,}\d")
-CURR_PAT = re.compile(r"(\$\s?\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:,\d{3})*(?:\.\d+)?\s*(USD|EUR|GBP|INR|¥|₩|₹|€))", re.I)
+CURR_PAT = re.compile(r"(\$\s?\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:,\d{3})*(?:\.\d+)?\s*(USD|EUR|GBP|INR|JPY|KRW|INR|EUR))", re.I)
 DEF_PAT = re.compile(r"([A-Z][A-Za-z0-9\s]+?)\s+(is|are|refers to|means)\s+(.*?)(?:[\.\n])")
 
 MD_TABLE_PAT = re.compile(r"(?:^\|.*?\|\n?)+(?:^\|[-:\s|]+\|\n?)?(?:^\|.*?\|\n?)+", re.M)
@@ -77,7 +77,7 @@ CSV_PAT = re.compile(r"((?:^.*?,.*?\n){2,})", re.M)
 TSV_PAT = re.compile(r"((?:^.*?\t.*?\n){2,})", re.M)
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # helper: model routing detectors
 # ------------------------------------------------------------------------
 def _is_openai_model(model_name: str) -> bool:
@@ -87,13 +87,13 @@ def _is_openai_model(model_name: str) -> bool:
 
 def _is_together_model(model_name: str) -> bool:
     """
-    Treat strings that begin with 'together:' as Together model names.
-    Example: 'together:meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'
-    """
+ Treat strings that begin with 'together:' as Together model names.
+ Example: 'together:meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'
+ """
     return model_name.lower().startswith("together:")
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # 2. core utilities
 # ------------------------------------------------------------------------
 def deduplicate_items(items: List[str], *, similarity=0.5,
@@ -126,7 +126,7 @@ def deduplicate_items(items: List[str], *, similarity=0.5,
     return out
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # 3. fact & table extractor
 # ------------------------------------------------------------------------
 def extract_facts_and_tables(text: str) -> Tuple[str, List[str], List[str]]:
@@ -149,14 +149,14 @@ def extract_facts_and_tables(text: str) -> Tuple[str, List[str], List[str]]:
     for m in DEF_PAT.finditer(text):
         _add(m)
 
-    # contextual sentences around facts
+    # conual sentences around facts
     doc = _nlp()(text)
     ctx = [s.text.strip() for s in doc.sents
            if any(s.start_char <= s_ <= s.end_char for s_, _ in spans)]
     facts.extend(ctx)
     facts = sorted(set(facts))
 
-    # ── tables
+    # -- tables
     tables: List[str] = []
 
     for tbl in MD_TABLE_PAT.findall(text):
@@ -193,7 +193,7 @@ def extract_facts_and_tables(text: str) -> Tuple[str, List[str], List[str]]:
         except Exception:
             pass
 
-    # ── clean narrative (remove facts & tables)
+    # -- clean narrative (remove facts & tables)
     narrative = text
     for tbl in tables:
         narrative = narrative.replace(tbl, " ")
@@ -204,14 +204,14 @@ def extract_facts_and_tables(text: str) -> Tuple[str, List[str], List[str]]:
     return narrative, facts, tables
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # 4. OpenAI & Together & vLLM summariser helpers
 # ------------------------------------------------------------------------
 def _summarise(text: str, pct: float, model: str) -> str:
     target_tokens = int(_tok(text) * pct)
     sys_prompt = (
-        "You are an expert abstractor. Summarize the text below to "
-        f"approximately {pct*100:.0f}% of its original length (≈{target_tokens} tokens), "
+        "You are an expert abstractor. Summarize the below to "
+        f"approximately {pct*100:.0f}% of its original length (approximately {target_tokens} tokens), "
         "while **retaining all key facts, figures, names, dates, places, and events**. "
         "Ensure the summary remains accurate, informative, and faithful to the original content."
     )
@@ -240,8 +240,8 @@ def _summarise(text: str, pct: float, model: str) -> str:
         )
 
 
-# ────────────────────────────────────────────────────────────────────────
-# 5. compress_text  (public)
+# ------------------------------------------------------------------------
+# 5. compress_text (public)
 # ------------------------------------------------------------------------
 def compress_text(text: str, *, pct: float = 0.3,
                   model: str = "gpt-4o-mini") -> str:
@@ -256,16 +256,16 @@ def compress_text(text: str, *, pct: float = 0.3,
     return narrative_txt
 
 
-# ────────────────────────────────────────────────────────────────────────
-# 6. query_text  (goal-oriented extraction)
+# ------------------------------------------------------------------------
+# 6. query_text (goal-oriented extraction)
 # ------------------------------------------------------------------------
 EXTRACTOR_SYS_PROMPT = (
     "You are a highly skilled information extraction agent. Your job is to analyze long, complex webpages "
-    "in the context of a specific user goal. You excel at identifying relevant sections, capturing supporting evidence "
-    "in full original context, and providing logically structured summaries. Always ensure precision, completeness, "
-    "and alignment with the user’s intent."
+    "in the con of a specific user goal. You excel at identifying relevant sections, capturing supporting evidence "
+    "in full original con, and providing logically structured summaries. Always ensure precision, completeness, "
+    "and alignment with the user's intent."
 )
-EXTRACTOR_PROMPT_TEMPLATE = """You are a highly skilled information extraction agent. Your task is to analyze the following webpage content in light of a specific user goal, and extract accurate, well-structured information using plain text format.
+EXTRACTOR_PROMPT_TEMPLATE = """You are a highly skilled information extraction agent. Your task is to analyze the following webpage content in light of a specific user goal, and extract accurate, well-structured information using plain format.
 
 ## Webpage Content
 {webpage_content}
@@ -274,7 +274,7 @@ EXTRACTOR_PROMPT_TEMPLATE = """You are a highly skilled information extraction a
 {goal}
 
 ## Task Guidelines
-1. **Rational**: Briefly explain why this content is relevant to the user’s goal.
+1. **Rational**: Briefly explain why this content is relevant to the user's goal.
 2. **Evidence**: Quote the most relevant parts of the webpage that directly support or address the goal. Use bullet points or numbered lines separated by newlines.
 3. **Summary**: Provide a clear, logically structured summary of the extracted evidence that addresses the user's goal.
 
@@ -302,7 +302,7 @@ def extract_regex(text: str) -> Dict[str, str]:
 
 def _call_openai(model: str, prompt: str, *, temperature: float,
                  max_tokens: int) -> str:
-    """One-shot call to the OpenAI chat endpoint; returns raw text."""
+    """One-shot call to the OpenAI chat endpoint; returns raw."""
     model_id = model.split(":", 1)[1] if ":" in model else model
     client = _openai_client()
     rsp = client.chat.completions.create(
@@ -320,9 +320,9 @@ def _call_openai(model: str, prompt: str, *, temperature: float,
 def _call_sglang(base_url: str, prompt: str, *, temperature: float,
                max_tokens: int, stop: List[str] | None = None) -> str:
     """
-    Call a vLLM REST endpoint that exposes POST {base_url}/generate.
-    Returns the generated text (1st candidate).
-    """
+ Call a vLLM REST endpoint that exposes POST {base_url}/generate.
+ Returns the generated (1st candidate).
+ """
     payload = {
         "text": prompt,
         "sampling_params": {
@@ -342,9 +342,9 @@ def _call_sglang(base_url: str, prompt: str, *, temperature: float,
     resp.raise_for_status()
     data = resp.json()
 
-    # vLLM returns {"text": "..."}  or  {"text": ["...", "..."]}
-    if isinstance(data, dict) and "text" in data:
-        txt = data["text"]
+    # vLLM returns {"text": "..."} or {"text": ["...", "..."]}
+    if isinstance(data, dict) and ("text" in data or "content" in data):
+        txt = data.get("text", data.get("content"))
         if isinstance(txt, list):
             return txt[0]
         return txt
@@ -356,9 +356,9 @@ def _call_together_chat(model: str, user: str, *,
                         temperature: float, max_tokens: int,
                         stop: List[str] | None = None) -> str:
     """
-    Together chat call using the SDK when available, otherwise raw requests.
-    `model` may be prefixed with 'together:' and will be stripped for the API.
-    """
+ Together chat call using the SDK when available, otherwise raw requests.
+ `model` may be prefixed with 'together:' and will be stripped for the API.
+ """
     model_id = model.split(":", 1)[1] if ":" in model else model
     print(model_id)
     print("+"*100)
@@ -399,7 +399,7 @@ def _call_together_chat(model: str, user: str, *,
         "stop": stop,
     }
     resp = requests.post(
-        "https://YOUR_LLM_API_BASE_URL",
+        "https://api.openai.com/v1",
         headers=headers,
         json=payload,
         timeout=60,
@@ -422,7 +422,7 @@ def query_text(
     temperature=0,
     max_tokens=1024
 ) -> Dict[str, str]:
-    """Goal-oriented extractor with retries → compress fallback → token trim fallback."""
+    """Goal-oriented extractor with retries -> compress fallback -> token trim fallback."""
     prompt = EXTRACTOR_PROMPT_TEMPLATE.format(
         webpage_content=text[:15_000],  # clip for safety
         goal=goal,
@@ -468,10 +468,10 @@ def query_text(
                 print("Summary:", extracted.get("summary", ""))
                 return {
                     "extracted_info": (
-                        f"The useful information in {url} for goal “{goal}”:\n\n"
-                        f"Rationale:\n'rational')}\n\n"
-                        f"Evidence:\n'evidence')}\n\n"
-                        f"Summary:\n'summary')}"
+                        f"The useful information in {url} for goal '{goal}':\n\n"
+                        f"Rationale:\n{extracted.get('rational', '')}\n\n"
+                        f"Evidence:\n{extracted.get('evidence', '')}\n\n"
+                        f"Summary:\n{extracted.get('summary', '')}"
                     )
                 }
 
@@ -481,7 +481,7 @@ def query_text(
             logging.warning("Attempt %d/%d failed for query-based extraction: %s",
                             attempt, max_attempts, e)
 
-    # ── Retry fallback: compress text ─────────────────────────────────────
+    # -- Retry fallback: compress -------------------------------------
     try:
         compressed = compress_text(text, model=model)
         return {
@@ -493,7 +493,7 @@ def query_text(
     except Exception as ce:
         logging.error("compress_text also failed: %s", ce)
 
-    # ── Final fallback: hard truncate to token budget ────────────────────
+    # -- Final fallback: hard truncate to token budget --------------------
     trunc, _ = trim_to_budget(text, CFG.output_limit_per_link, is_table=False)
     return {
         "extracted_info": (
@@ -503,7 +503,7 @@ def query_text(
     }
 
 
-# ────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------
 # 7. helper: trim long lists to token budget (string or list)
 # ------------------------------------------------------------------------
 def trim_to_budget(items: Union[str, List[str]], budget: int, *, is_table: bool = False) -> Tuple[str, int]:
@@ -529,9 +529,9 @@ def trim_to_budget(items: Union[str, List[str]], budget: int, *, is_table: bool 
     return joined, _tok(joined)
 
 # python evals/deep_research_pairwise_evals.py \
-#   --input-data /path/to/storage \
-#   --output-dir /path/to/storage \
-#   --model o3-mini-2025-01-31 \
-#   --num-workers 64 \
-#   --metric-num-workers 64 \
-#   --metric-num-trials 
+# --input-data data/storage \
+# --output-dir data/storage \
+# --model o3-mini-2025-01-31 \
+# --num-workers 64 \
+# --metric-num-workers 64 \
+# --metric-num-trials

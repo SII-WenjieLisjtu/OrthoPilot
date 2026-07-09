@@ -14,11 +14,11 @@ import wave
 import contextlib
 from mutagen import File as MutagenFile
 import asyncio
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENAI_TRANSCRIPTION_MODEL_NAME = os.environ.get(
     "OPENAI_TRANSCRIPTION_MODEL_NAME", "gpt-4o-transcribe"
 )
@@ -33,15 +33,15 @@ mcp = FastMCP("audio-mcp-server")
 
 def _get_audio_extension(url: str, content_type: str = None) -> str:
     """
-    Determine the appropriate audio file extension from URL or content type.
+ Determine the appropriate audio file extension from URL or content type.
 
-    Args:
-        url: The URL of the audio file
-        content_type: The content type from HTTP headers
+ Args:
+ url: The URL of the audio file
+ content_type: The content type from HTTP headers
 
-    Returns:
-        File extension (with dot) to use for temporary file
-    """
+ Returns:
+ File extension (with dot) to use for temporary file
+ """
     # First try to get extension from URL
     parsed_url = urlparse(url)
     path = parsed_url.path.lower()
@@ -74,11 +74,11 @@ def _get_audio_extension(url: str, content_type: str = None) -> str:
 
 def _get_audio_duration(audio_path: str) -> float:
     """
-    Get audio duration in seconds.
+ Get audio duration in seconds.
 
-    Tries to use wave (for .wav), then falls back to mutagen (for mp3, etc).
-    """
-    # Try using wave for .wav files
+ Tries to use wave (for.wav), then falls back to mutagen (for mp3, etc).
+ """
+    # Try using wave for.wav files
     try:
         with contextlib.closing(wave.open(audio_path, "rb")) as f:
             frames = f.getnframes()
@@ -131,13 +131,13 @@ def _encode_audio_file(audio_path: str) -> tuple[str, str]:
 @mcp.tool()
 async def audio_transcription(audio_path_or_url: str) -> str:
     """
-    Transcribe audio file to text and return the transcription.
-    Args:
-        audio_path_or_url: The path of the audio file locally or its URL. Path from sandbox is not supported. YouTube URL is not supported.
+ Transcribe audio file to and return the transcription.
+ Args:
+ audio_path_or_url: The path of the audio file locally or its URL. Path from sandbox is not supported. YouTube URL is not supported.
 
-    Returns:
-        The transcription of the audio file.
-    """
+ Returns:
+ The transcription of the audio file.
+ """
     max_retries = 3
     retry = 0
     transcription = None
@@ -202,20 +202,20 @@ async def audio_transcription(audio_path_or_url: str) -> str:
 @mcp.tool()
 async def audio_question_answering(audio_path_or_url: str, question: str) -> str:
     """
-    Answer the question based on the given audio information.
+ Answer the question based on the given audio information.
 
-    Args:
-        audio_path_or_url: The path of the audio file locally or its URL. Path from sandbox is not supported. YouTube URL is not supported.
-        question: The question to answer.
+ Args:
+ audio_path_or_url: The path of the audio file locally or its URL. Path from sandbox is not supported. YouTube URL is not supported.
+ question: The question to answer.
 
-    Returns:
-        The answer to the question, and the duration of the audio file.
-    """
+ Returns:
+ The answer to the question, and the duration of the audio file.
+ """
     try:
         client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
 
         text_prompt = f"""Answer the following question based on the given \
-        audio information:\n"""
+ audio information:\n"""
 
         if os.path.exists(audio_path_or_url):  # Check if the file exists locally
             encoded_string, file_format = _encode_audio_file(audio_path_or_url)

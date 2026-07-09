@@ -1,12 +1,12 @@
 """
 Asynchronous wrapper around **Crawl4AI** so that other coroutines can await a
-single call – identical to the previous implementation but isolated in its own
-module to satisfy clean‑architecture / layering.
+single call - identical to the previous implementation but isolated in its own
+module to satisfy clean-architecture / layering.
 
 Public API
 ==========
 async def fetch_crawl4ai(url: str) -> str
-    Returns markdown extracted by Crawl4AI or raises `RuntimeError` on failure.
+ Returns markdown extracted by Crawl4AI or raises `RuntimeError` on failure.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ _RETRYABLE = (
     "target crashed",
 )
 
-# Globals bound to the *event‑loop* currently active
+# Globals bound to the *event-loop* currently active
 _CRAWLER: AsyncWebCrawler | None = None
 _CRAWLER_LOOP: asyncio.AbstractEventLoop | None = None
 _SEMAPHORES: dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = {}
@@ -91,7 +91,7 @@ async def fetch_crawl4ai(url: str) -> str:
             logging.warning("Crawl4AI attempt %d/%d failed: %s", attempt, _MAX_ATTEMPTS, err)
 
             if attempt < _MAX_ATTEMPTS and any(p in err.lower() for p in _RETRYABLE):
-                # reset shared browser & retry after back‑off
+                # reset shared browser & retry after back-off
                 global _CRAWLER
                 try:
                     await _CRAWLER.aclose()

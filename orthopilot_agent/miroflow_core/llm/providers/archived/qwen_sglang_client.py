@@ -9,9 +9,9 @@ from omegaconf import DictConfig
 from openai import AsyncOpenAI, OpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from src.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 import os
 
@@ -43,11 +43,11 @@ class QwenSGLangClient(LLMProviderClientBase):
         keep_tool_result: int = -1,
     ):
         """
-        Send message to OpenAI API.
-        :param system_prompt: System prompt string.
-        :param messages: Message history list.
-        :return: OpenAI API response object or None (if error occurs).
-        """
+ Send message to OpenAI API.
+:param system_prompt: System prompt string.
+:param messages: Message history list.
+:return: OpenAI API response object or None (if error occurs).
+ """
 
         logger.debug(f" Calling LLM ({'async' if self.async_client else 'sync'})")
         # put the system prompt in the first message since OpenAI API does not support system prompt in
@@ -115,7 +115,7 @@ class QwenSGLangClient(LLMProviderClientBase):
             logger.debug(f"Error: {error_msg}")
             return "", True  # Exit loop
 
-        # Extract LLM response text
+        # Extract LLM response
         if llm_response.choices[0].finish_reason == "stop":
             assistant_response_text = llm_response.choices[0].message.content or ""
             message_history.append(
@@ -123,7 +123,7 @@ class QwenSGLangClient(LLMProviderClientBase):
             )
         elif llm_response.choices[0].finish_reason == "length":
             assistant_response_text = llm_response.choices[0].message.content or ""
-            if assistant_response_text == "":
+            if not assistant_response_text:
                 assistant_response_text = "LLM response is empty. This is likely due to thinking block used up all tokens."
             message_history.append(
                 {"role": "assistant", "content": assistant_response_text}

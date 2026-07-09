@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-eval_nosearch.py — Minimal baseline evaluator (single or multi-threaded)
+eval_nosearch.py - Minimal baseline evaluator (single or multi-threaded)
 
 What this script does
 ---------------------
 - Talks to either a local vLLM server (`/generate`) OR any OpenAI-compatible
-  server (`/v1/chat/completions`) using the same `--model-url`.
+ server (`/v1/chat/completions`) using the same `--model-url`.
 - No tools, no fancy CoT parsing; just a plain prompt and robust "final answer"
-  extraction helper.
+ extraction helper.
 - Judges with OpenAI (configurable model) behind a small concurrency semaphore.
-  If the judge API fails, falls back to a simple substring/normalization match.
+ If the judge API fails, falls back to a simple substring/normalization match.
 - Appends to a JSONL file so runs are resumable and safe to interrupt.
 
 Dataset format (one JSON object per line):
-    {"id": "...", "question": "...", "answer": "..."}
+ {"id": "...", "question": "...", "answer": "..."}
 
 Quick start
 -----------
-export OPENAI_API_KEY=sk-...   # for judge
+export OPENAI_API_KEY=sk-... # for judge
 python eval_nosearch.py \
-  --dataset /path/to/frames.jsonl \
-  --out /path/to/output/folder/filename.jsonl \
-  --model-url http://YOUR_HOST:YOUR_PORT \
-  --tokenizer-path /path/to/toeknizer/model \
-  --mode multi --workers 64
+ --dataset data/frames.jsonl \
+ --out outputs/filename.jsonl \
+ --model-url http://localhost:8000 \
+ --tokenizer-path checkpoints/tokenizer \
+ --mode multi --workers 64
 """
 
 from __future__ import annotations
@@ -57,9 +57,9 @@ except Exception:
     APIStatusError = Exception  # type: ignore
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                         Small utility helpers                             ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Small utility helpers |
+# #===========================================================================#
 
 def normalize(s: str) -> str:
     """NFKD normalize + lowercase + trim. Good for loose comparisons."""
@@ -102,21 +102,21 @@ def collect_existing_ids(path: pathlib.Path) -> set[str]:
     return seen
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                    Final answer extraction helpers                        ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Final answer extraction helpers |
+# #===========================================================================#
 
 _BOXED_RE_LAST = re.compile(r"(\\boxed\s*\{.*?\}|\\boxed\s+[^\s$]+|\\fbox\{.*?\})", re.S)
 
 def _find_last_boxed(text: str) -> Optional[str]:
-    """Return the last \\boxed{...} / \\boxed ... or \\fbox{...} span, if any."""
+    """Return the last \\boxed{...} / \\boxed... or \\fbox{...} span, if any."""
     if not text:
         return None
     matches = _BOXED_RE_LAST.findall(text)
     return matches[-1] if matches else None
 
 def _unbox(span: str) -> str:
-    """Strip \\boxed{...} / \\boxed ... / \\fbox{...} wrappers."""
+    """Strip \\boxed{...} / \\boxed... / \\fbox{...} wrappers."""
     s = span.strip()
     if s.startswith("\\boxed "):
         return s[len("\\boxed "):].strip()
@@ -128,12 +128,12 @@ def _unbox(span: str) -> str:
 
 def extract_final_answer(text: str) -> str:
     """
-    Heuristic final-answer extractor in descending preference:
-    1) last \boxed{...} / \boxed ... / \fbox{...}
-    2) last <answer>...</answer>
-    3) last 'final answer:'/'answer:'/'ans:' pattern on a line
-    4) last non-empty line
-    """
+ Heuristic final-answer extractor in descending preference:
+ 1) last \boxed{...} / \boxed... / \fbox{...}
+ 2) last <answer>...</answer>
+ 3) last 'final answer:'/'answer:'/'ans:' pattern on a line
+ 4) last non-empty line
+ """
     if not isinstance(text, str) or not text:
         return ""
 
@@ -159,9 +159,9 @@ def extract_final_answer(text: str) -> str:
     return ""
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                       Tokenizer / prompt templating                       ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Tokenizer / prompt templating |
+# #===========================================================================#
 
 _TOKENIZER_CACHE: Dict[str, Any] = {}
 
@@ -178,9 +178,9 @@ def get_tokenizer(path: str):
 
 def render_prompt(tokenizer, system_prompt: str, user_prompt: str) -> Tuple[str, int]:
     """
-    Use the tokenizer chat template to produce a single text prompt (for /generate).
-    Returns: (prompt_text, prompt_token_count)
-    """
+ Use the tokenizer chat template to produce a single prompt (for /generate).
+ Returns: (prompt_text, prompt_token_count)
+ """
     if tokenizer is None:
         # Fallback: concatenate plainly.
         prompt = f"<|system|>\n{system_prompt}\n<|user|>\n{user_prompt}\n"
@@ -194,9 +194,9 @@ def render_prompt(tokenizer, system_prompt: str, user_prompt: str) -> Tuple[str,
     return prompt, (len(ids) if isinstance(ids, list) else 0)
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                        HTTP client (thread-local)                         ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | HTTP client (thread-local) |
+# #===========================================================================#
 
 _TL = threading.local()
 
@@ -222,9 +222,9 @@ def _post_json(url: str, payload: dict, timeout: int = 120) -> dict:
     return r.json()
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                      Chat call (vLLM → OpenAI fallback)                   ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Chat call (vLLM -> OpenAI fallback) |
+# #===========================================================================#
 
 def chat(
     *,
@@ -238,9 +238,9 @@ def chat(
     stop: Optional[List[str]] = None,
 ) -> str:
     """
-    Try vLLM `/generate` first (with a single prompt string).
-    If that fails, fall back to OpenAI-compatible `/v1/chat/completions`.
-    """
+ Try vLLM `/generate` first (with a single prompt string).
+ If that fails, fall back to OpenAI-compatible `/v1/chat/completions`.
+ """
     # Render prompt for /generate and budget new tokens
     prompt, prompt_tokens = render_prompt(tokenizer, system_prompt, user_prompt)
     max_new_tokens = max(1, max_tokens - prompt_tokens - 100)  # safety buffer
@@ -290,9 +290,9 @@ def chat(
         return str(txt).strip()
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                                  Judge                                    ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Judge |
+# #===========================================================================#
 
 JUDGE_SYSTEM = """You are an impartial judge evaluating the correctness of a model's answer
 against a ground-truth answer for a given question.
@@ -351,9 +351,9 @@ class Judge:
         return self._api_judge(q, gt, pred) or self._fallback(q, gt, pred)
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                           Core per-example eval                           ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Core per-example eval |
+# #===========================================================================#
 
 def eval_one(ex: dict, args, tokenizer, judge: Judge) -> dict:
     """Run a single example through the model, extract final answer, and judge."""
@@ -397,21 +397,21 @@ def eval_one(ex: dict, args, tokenizer, judge: Judge) -> dict:
         }
 
 
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                                   Main                                    ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+# #===========================================================================#
+# | Main |
+# #===========================================================================#
 
 def main():
     p = argparse.ArgumentParser(description="Minimal baseline evaluator (vLLM or OpenAI-compatible).")
-    p.add_argument("--dataset", required=True, help="Path to dataset .jsonl")
-    p.add_argument("--out", required=True, help="Output .jsonl (appended).")
-    p.add_argument("--model-url", required=True, help="Base URL (e.g., http://YOUR_HOST:YOUR_PORT)")
+    p.add_argument("--dataset", required=True, help="Path to dataset.jsonl")
+    p.add_argument("--out", required=True, help="Output.jsonl (appended).")
+    p.add_argument("--model-url", required=True, help="Base URL (e.g., http://localhost:8000)")
     p.add_argument("--chat-model", default="local-model", help="`model` string for /v1/chat/completions fallback")
     p.add_argument("--tokenizer-path", required=True, help="HF tokenizer path (for chat template rendering)")
     p.add_argument("--limit", type=int, default=0, help="Evaluate first N items (0 = all)")
     p.add_argument("--prompt-template", default="Q: {q}\nA:", help="User prompt template (use {q})")
     p.add_argument("--system-prompt",
-                   default="Please answer the following question. Provide your final answer as \\boxed{YOUR_ANSWER}.",
+                   default="Please answer the following question. Provide your final answer as \\boxed{FINAL_ANSWER}.",
                    help="System prompt string (ignored if --system-prompt-file is set)")
     p.add_argument("--system-prompt-file",
                    help="File containing system prompt; overrides --system-prompt")
@@ -435,7 +435,7 @@ def main():
     if args.system_prompt_file:
         args.system_prompt = pathlib.Path(args.system_prompt_file).read_text(encoding="utf-8")
 
-    # Tokenizer (for chat template → /generate)
+    # Tokenizer (for chat template -> /generate)
     tokenizer = get_tokenizer(args.tokenizer_path)
 
     # Data + limit

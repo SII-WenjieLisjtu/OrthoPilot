@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-eval_search.py — Unified, well-commented benchmarking harness
+eval_search.py - Unified, well-commented benchmarking harness
 ==============================================================
 
 Supports multiple agent wrappers (Fathom-Search, II-Search, Jan-Nano, ZeroSearch,
@@ -25,43 +25,43 @@ Requirements
 - Python 3.10+
 - `openai` for judging (set $OPENAI_API_KEY)
 - Agent wrapper modules available on PYTHONPATH:
-    * `re_call.ReCall` (used for --agent fathom-search / ii-search / jan-nano)
-    * (Optionally) `re_call.ZeroSearchInference`, `re_call.ZeroSearchConfig`
-    * (Optionally) `re_call.R1Searcher`, `re_call.R1SearchConfig`
-    * (Optionally) `re_call.O1Searcher`, `re_call.O1Cfg`
+ * `re_call.ReCall` (used for --agent fathom-search / ii-search / jan-nano)
+ * (Optionally) `re_call.ZeroSearchInference`, `re_call.ZeroSearchConfig`
+ * (Optionally) `re_call.R1Searcher`, `re_call.R1SearchConfig`
+ * (Optionally) `re_call.O1Searcher`, `re_call.O1Cfg`
 - `transformers` if you pass --tokenizer to load an HF tokenizer for the agent
 
 Example usage
 -------------
 Single-threaded:
-    python eval_search.py \
-        --dataset frames \
-        --data-root /path/to/datasets \
-        --agent fathom-search \
-        --executors http://YOUR_HOST:YOUR_PORT \
-        --model-url http://YOUR_HOST:YOUR_PORT \
-        --out-base /tmp/evals \
-        --mode single
-        --tokenizer 
+ python eval_search.py \
+ --dataset frames \
+ --data-root data/datasets \
+ --agent fathom-search \
+ --executors http://localhost:8000 \
+ --model-url http://localhost:8000 \
+ --out-base /tmp/evals \
+ --mode single
+ --tokenizer
 
 Multi-threaded (64 workers) with resume:
-    python eval_search.py \
-        --dataset upsc_2025 \
-        --data-root /path/to/storage \
-        --tokenizer /path/to/storage \
-        --agent jan-nano \
-        --executors http://YOUR_HOST:YOUR_PORT \
-        --model-url http://YOUR_HOST:YOUR_PORT \
-        --out-base /tmp/evals \
-        --mode multi \
-        --workers 64 \
-        --resume 
+ python eval_search.py \
+ --dataset upsc_2025 \
+ --data-root data/storage \
+ --tokenizer data/storage \
+ --agent jan-nano \
+ --executors http://localhost:8000 \
+ --model-url http://localhost:8000 \
+ --out-base /tmp/evals \
+ --mode multi \
+ --workers 64 \
+ --resume
 
 Output path pattern:
-    {out_base}/{agent}/{dataset}-{name}.jsonl
+ {out_base}/{agent}/{dataset}-{name}.jsonl
 
 Dataset JSONL format (per line):
-    {"id": "...", "question": "...", "answer": "..."}
+ {"id": "...", "question": "...", "answer": "..."}
 If `id` is missing, a deterministic SHA256 of the question is used.
 """
 
@@ -94,11 +94,11 @@ except Exception:  # pragma: no cover - optional dependency
 try:
     from openai import OpenAI, APIStatusError  # type: ignore
 except Exception:
-    raise SystemExit("❌ The 'openai' package is required for judging. Install via `pip install openai`.")
+    raise SystemExit("ERROR The 'openai' package is required for judging. Install via `pip install openai`.")
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Utility helpers
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 def normalize(s: str) -> str:
     return unicodedata.normalize("NFKD", s.strip().lower())
@@ -110,9 +110,9 @@ def sha256_text(s: str) -> str:
 
 def parse_limit(limit: Optional[str]) -> Tuple[int, Optional[int]]:
     """
-    Parse --limit like "0,2000" or "100" (meaning 0..100).
-    Returns (start, end_or_None).
-    """
+ Parse --limit like "0,2000" or "100" (meaning 0..100).
+ Returns (start, end_or_None).
+ """
     if not limit:
         return 0, None
     if "," in limit:
@@ -121,17 +121,17 @@ def parse_limit(limit: Optional[str]) -> Tuple[int, Optional[int]]:
     return 0, int(limit.strip())
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Answer extraction utilities
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 _ANS_TAG_RE = re.compile(r"<answer>(.*?)</answer>", re.S)
 
 def extract_answer_tagged(text: str) -> str:
     """
-    Extract the last <answer>...</answer> block (common for R1-Searcher, ZeroSearch).
-    Falls back to the last 200 characters if not found.
-    """
+ Extract the last <answer>...</answer> block (common for R1-Searcher, ZeroSearch).
+ Falls back to the last 200 characters if not found.
+ """
     matches = _ANS_TAG_RE.findall(text or "")
     if matches:
         return normalize(matches[-1])
@@ -140,14 +140,14 @@ def extract_answer_tagged(text: str) -> str:
 
 def _boxed_last_span(s: str) -> Optional[str]:
     """
-    Returns the last occurrence of \boxed{...} or \boxed ... (LaTeX style), including braces.
-    Also supports \fbox{...} as a fallback.
-    """
+ Returns the last occurrence of \boxed{...} or \boxed... (LaTeX style), including braces.
+ Also supports \fbox{...} as a fallback.
+ """
     if s is None:
         return None
     idx = s.rfind("\\boxed")
     if "\\boxed " in s:
-        # E.g., "\boxed 42$ ...", stop at first '$' after it if present
+        # E.g., "\boxed 42$...", stop at first '$' after it if present
         return "\\boxed " + s.split("\\boxed ")[-1].split("$")[0]
     if idx < 0:
         idx = s.rfind("\\fbox")
@@ -171,9 +171,9 @@ def _boxed_last_span(s: str) -> Optional[str]:
 
 def extract_answer_boxed(text: str) -> str:
     """
-    Extract the content inside the *last* \\boxed{...} (or \\fbox{...}) occurrence.
-    If not found, fall back to the last 200 chars.
-    """
+ Extract the content inside the *last* \\boxed{...} (or \\fbox{...}) occurrence.
+ If not found, fall back to the last 200 chars.
+ """
     try:
         span = _boxed_last_span(text or "")
         if not span:
@@ -192,9 +192,9 @@ def extract_answer_boxed(text: str) -> str:
         return normalize((text or "")[-200:])
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # OpenAI judge (thread-safe client + semaphore)
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 @dataclass
 class JudgeConfig:
@@ -251,15 +251,15 @@ Respond with only one word: correct / incorrect / unknown
         return "unknown"
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Agent factory + adapters
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 class BaseAgent:
     """
-    Minimal interface expected by the harness: `.run(...) -> (transcript, tool_calls)`.
-    Concrete adapters wrap your own agent implementations to unify signatures.
-    """
+ Minimal interface expected by the harness: `.run(...) -> (transcript, tool_calls)`.
+ Concrete adapters wrap your own agent implementations to unify signatures.
+ """
     def run(self, *args, **kwargs) -> Tuple[str, Any]:  # transcript, tool_calls
         raise NotImplementedError
 
@@ -357,9 +357,9 @@ def build_agent(kind: str, model_url: Optional[str], executors: List[str]) -> Ba
     raise ValueError(f"Unknown agent kind: {kind}")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Search tool presets for ReCall (choose via --search-preset)
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 RECALL_PRESETS: Dict[str, Tuple[str, List[Dict[str, Any]]]] = {
     # Legacy two-tool preset
@@ -368,7 +368,7 @@ RECALL_PRESETS: Dict[str, Tuple[str, List[Dict[str, Any]]]] = {
         [
             {
                 "name": "web_search",
-                "description": "Google search and return links to web-pages with a brief snippet given a text query",
+                "description": "Google search and return links to web-pages with a brief snippet given a query",
                 "parameters": {
                     "type": "object",
                     "properties": {"query": {"type": "string"}},
@@ -394,7 +394,7 @@ RECALL_PRESETS: Dict[str, Tuple[str, List[Dict[str, Any]]]] = {
         [
             {
                 "name": "search_urls",
-                "description": "Google search and return links to web-pages with a brief snippet given a text query",
+                "description": "Google search and return links to web-pages with a brief snippet given a query",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -421,9 +421,9 @@ RECALL_PRESETS: Dict[str, Tuple[str, List[Dict[str, Any]]]] = {
 }
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Core evaluation per example
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 def evaluate_one(
     example: Dict[str, Any],
@@ -438,9 +438,9 @@ def evaluate_one(
     tokenizer: Any,
 ) -> Dict[str, Any]:
     """
-    Runs a single example through the agent, extracts an answer, gets a judge verdict,
-    and returns a JSON-serializable row.
-    """
+ Runs a single example through the agent, extracts an answer, gets a judge verdict,
+ and returns a JSON-serializable row.
+ """
     question = (example.get("question") or "").strip()
     if not question:
         raise ValueError("Example missing 'question'")
@@ -463,10 +463,10 @@ def evaluate_one(
             tokenizer=tokenizer,
         )
     else:
-        transcript, tool_calls = agent.run(question=question, tokenizer=tokenizer)  # ← pass it through
+        transcript, tool_calls = agent.run(question=question, tokenizer=tokenizer)  # <- pass it through
 
     # else:
-        # transcript, tool_calls = agent.run(question=question)  # type: ignore[arg-type]
+        # transcript, tool_calls = agent.run(question=question) # type: ignore[arg-type]
 
     # Heuristic extraction by agent family
     if agent_key in {"r1-searcher", "zerosearch"}:
@@ -487,9 +487,9 @@ def evaluate_one(
     }
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # I/O helpers
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 def load_jsonl(path: pathlib.Path) -> List[Dict[str, Any]]:
     data: List[Dict[str, Any]] = []
@@ -532,9 +532,9 @@ def collect_existing_ids(path: pathlib.Path) -> set[str]:
     return ids
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 # Main
-# ──────────────────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Unified benchmarking harness (single or multi-threaded).")
@@ -598,10 +598,10 @@ def main():
     # already_done: set[str] = set()
     # write_mode = "a"
     # if args.resume and out_path.exists():
-    #     already_done = collect_existing_ids(out_path)
-    #     logging.info("Resuming: %d IDs already present and will be skipped.", len(already_done))
+    # already_done = collect_existing_ids(out_path)
+    # logging.info("Resuming: %d IDs already present and will be skipped.", len(already_done))
     # else:
-    #     write_mode = "w"  # fresh file
+    # write_mode = "w" # fresh file
     # Resume logic & file handling
     already_done: set[str] = set()
     if args.resume:
@@ -615,7 +615,7 @@ def main():
         # fresh run: delete prior output file if it exists
         if out_path.exists():
             out_path.unlink()
- 
+
 
     # Select ReCall preset
     recall_env, recall_schemas = RECALL_PRESETS[args.search_preset]
@@ -629,7 +629,7 @@ def main():
         total += 1
         if row.get("judge") == "correct":
             correct += 1
-        # add context
+        # add con
         row.update({"agent": args.agent, "dataset": args.dataset})
         save_rows_jsonl(out_path, [row], mode="a")
 

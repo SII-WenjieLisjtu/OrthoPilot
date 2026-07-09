@@ -14,13 +14,13 @@ from mcp import ClientSession, StdioServerParameters  # (already imported in con
 import wikipedia
 import asyncio
 from .utils.smart_request import smart_request, request_to_json
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "")
-SERPER_BASE_URL = os.environ.get("SERPER_BASE_URL", "https://YOUR_SEARCH_API_URL")
+SERPER_BASE_URL = os.environ.get("SERPER_BASE_URL", "https://google.serper.dev/search")
 JINA_API_KEY = os.environ.get("JINA_API_KEY", "")
-JINA_BASE_URL = os.environ.get("JINA_BASE_URL", "https://YOUR_READER_API_URL")
+JINA_BASE_URL = os.environ.get("JINA_BASE_URL", "https://r.jina.ai/http://")
 
 IS_MIRO_API = True if "miro" in SERPER_BASE_URL or "miro" in JINA_BASE_URL else False
 
@@ -45,12 +45,12 @@ mcp = FastMCP("searching-mcp-server")
 def filter_google_search_result(result_content: str) -> str:
     """Filter google search result content based on environment variables.
 
-    Args:
-        result_content: The JSON string result from google search
+ Args:
+ result_content: The JSON string result from google search
 
-    Returns:
-        Filtered JSON string result
-    """
+ Returns:
+ Filtered JSON string result
+ """
     try:
         # Parse JSON
         data = json.loads(result_content)
@@ -96,21 +96,21 @@ async def google_search(
     page: int = 1,
 ) -> str:
     """Perform google searches via Serper API and retrieve rich results.
-    It is able to retrieve organic search results, people also ask, related searches, and knowledge graph.
+ It is able to retrieve organic search results, people also ask, related searches, and knowledge graph.
 
-    Args:
-        q: Search query string.
-        gl: Country context for search (e.g., 'us' for United States, 'cn' for China, 'uk' for United Kingdom). Influences regional results priority. Default is 'us'.
-        hl: Google interface language (e.g., 'en' for English, 'zh' for Chinese, 'es' for Spanish). Affects snippet language preference. Default is 'en'.
-        location: City-level location for search results (e.g., 'SoHo, New York, United States', 'California, United States').
-        num: The number of results to return (default: 10).
-        tbs: Time-based search filter ('qdr:h' for past hour, 'qdr:d' for past day, 'qdr:w' for past week, 'qdr:m' for past month, 'qdr:y' for past year).
-        page: The page number of results to return (default: 1).
+ Args:
+ q: Search query string.
+ gl: Country con for search (e.g., 'us' for United States, 'cn' for China, 'uk' for United Kingdom). Influences regional results priority. Default is 'us'.
+ hl: Google interface language (e.g., 'en' for English, 'zh' for Chinese, 'es' for Spanish). Affects snippet language preference. Default is 'en'.
+ location: City-level location for search results (e.g., 'SoHo, New York, United States', 'California, United States').
+ num: The number of results to return (default: 10).
+ tbs: Time-based search filter ('qdr:h' for past hour, 'qdr:d' for past day, 'qdr:w' for past week, 'qdr:m' for past month, 'qdr:y' for past year).
+ page: The page number of results to return (default: 1).
 
-    Returns:
-        The search results.
-    """
-    if SERPER_API_KEY == "":
+ Returns:
+ The search results.
+ """
+    if not SERPER_API_KEY:
         return (
             "[ERROR]: SERPER_API_KEY is not set, google_search tool is not available."
         )
@@ -176,18 +176,18 @@ async def google_search(
 async def wiki_get_page_content(entity: str, first_sentences: int = 10) -> str:
     """Get specific Wikipedia page content for the specific entity (people, places, concepts, events) and return structured information.
 
-    This tool searches Wikipedia for the given entity and returns either the first few sentences
-    (which typically contain the summary/introduction) or full page content based on parameters.
-    It handles disambiguation pages and provides clean, structured output.
+ This tool searches Wikipedia for the given entity and returns either the first few sentences
+ (which typically contain the summary/introduction) or full page content based on parameters.
+ It handles disambiguation pages and provides clean, structured output.
 
-    Args:
-        entity: The entity to search for in Wikipedia.
-        first_sentences: Number of first sentences to return from the page. Set to 0 to return full content. Defaults to 10.
+ Args:
+ entity: The entity to search for in Wikipedia.
+ first_sentences: Number of first sentences to return from the page. Set to 0 to return full content. Defaults to 10.
 
-    Returns:
-        str: Formatted search results containing title, first sentences/full content, and URL.
-             Returns error message if page not found or other issues occur.
-    """
+ Returns:
+ str: Formatted search results containing title, first sentences/full content, and URL.
+ Returns error message if page not found or other issues occur.
+ """
     try:
         # Try to get the Wikipedia page directly
         page = wikipedia.page(title=entity, auto_suggest=False)
@@ -217,7 +217,7 @@ async def wiki_get_page_content(entity: str, first_sentences: int = 10) -> str:
                 )
         else:
             # Return full content if first_sentences is 0
-            # TODO: Context Engineering Needed
+            # TODO: Con Engineering Needed
             result_parts.append(f"Content: {page.content}")
 
         result_parts.append(f"URL: {page.url}")
@@ -287,16 +287,16 @@ async def search_wiki_revision(
 ) -> str:
     """Search for an entity in Wikipedia and return the revision history for a specific month.
 
-    Args:
-        entity: The entity to search for in Wikipedia.
-        year: The year of the revision (e.g. 2024).
-        month: The month of the revision (1-12).
-        max_revisions: Maximum number of revisions to return. Defaults to 50.
+ Args:
+ entity: The entity to search for in Wikipedia.
+ year: The year of the revision (e.g. 2024).
+ month: The month of the revision (1-12).
+ max_revisions: Maximum number of revisions to return. Defaults to 50.
 
-    Returns:
-        str: Formatted revision history with timestamps, revision IDs, and URLs.
-             Returns error message if page not found or other issues occur.
-    """
+ Returns:
+ str: Formatted revision history with timestamps, revision IDs, and URLs.
+ Returns error message if page not found or other issues occur.
+ """
     # Auto-adjust date values and track changes
     adjustments = []
     original_year, original_month = year, month
@@ -332,7 +332,7 @@ async def search_wiki_revision(
     else:
         adjustment_msg = ""
 
-    base_url = "https://YOUR_WIKI_API_URL"
+    base_url = "https://en.wikipedia.org/w/api.php"
 
     try:
         # Construct the time range
@@ -419,8 +419,8 @@ async def search_wiki_revision(
 
             revisions_details.append(
                 f"{i}. Revision ID: {revision_id}\n"
-                f"   Timestamp: {formatted_time}\n"
-                f"   URL: {rev_url}"
+                f" Timestamp: {formatted_time}\n"
+                f" URL: {rev_url}"
             )
 
         if revisions_details:
@@ -449,16 +449,16 @@ async def search_wiki_revision(
 async def search_archived_webpage(url: str, year: int, month: int, day: int) -> str:
     """Search the Wayback Machine (archive.org) for archived versions of a webpage, optionally for a specific date.
 
-    Args:
-        url: The URL to search for in the Wayback Machine.
-        year: The target year (e.g., 2023).
-        month: The target month (1-12).
-        day: The target day (1-31).
+ Args:
+ url: The URL to search for in the Wayback Machine.
+ year: The target year (e.g., 2023).
+ month: The target month (1-12).
+ day: The target day (1-31).
 
-    Returns:
-        str: Formatted archive information including archived URL, timestamp, and status.
-             Returns error message if URL not found or other issues occur.
-    """
+ Returns:
+ str: Formatted archive information including archived URL, timestamp, and status.
+ Returns error message if URL not found or other issues occur.
+ """
     # Handle empty URL
     if not url:
         return f"[ERROR]: Invalid URL: '{url}'. URL cannot be empty."
@@ -532,7 +532,7 @@ async def search_archived_webpage(url: str, year: int, month: int, day: int) -> 
             )
 
     try:
-        base_url = "https://YOUR_ARCHIVE_API_URL"
+        base_url = "https://archive.org/wayback/available"
         # Search with specific date if provided
         if date:
             retry_count = 0
@@ -681,11 +681,11 @@ async def search_archived_webpage(url: str, year: int, month: int, day: int) -> 
 async def scrape_website(url: str) -> str:
     """This tool is used to scrape a website for its content. Search engines are not supported by this tool. This tool can also be used to get YouTube video non-visual information (however, it may be incomplete), such as video subtitles, titles, descriptions, key moments, etc.
 
-    Args:
-        url: The URL of the website to scrape.
-    Returns:
-        The scraped website content.
-    """
+ Args:
+ url: The URL of the website to scrape.
+ Returns:
+ The scraped website content.
+ """
     # TODO: Long Content Handling
     return await smart_request(
         url,

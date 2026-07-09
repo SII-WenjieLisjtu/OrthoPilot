@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,7 +31,7 @@ from tenacity import (
 
 from .utils.url_unquote import decode_http_urls_in_dict
 
-SERPER_BASE_URL = os.getenv("SERPER_BASE_URL", "https://YOUR_SEARCH_API_URL")
+SERPER_BASE_URL = os.getenv("SERPER_BASE_URL", "https://google.serper.dev/search")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
 
 
@@ -57,10 +57,10 @@ def make_serper_request(
 
 def _is_huggingface_dataset_or_space_url(url):
     """
-    Check if the URL is a HuggingFace dataset or space URL.
-    :param url: The URL to check
-    :return: True if it's a HuggingFace dataset or space URL, False otherwise
-    """
+ Check if the URL is a HuggingFace dataset or space URL.
+:param url: The URL to check
+:return: True if it's a HuggingFace dataset or space URL, False otherwise
+ """
     if not url:
         return False
     return "huggingface.co/datasets" in url or "huggingface.co/spaces" in url
@@ -78,25 +78,25 @@ def google_search(
     autocorrect: bool | None = None,
 ) -> Dict[str, Any]:
     """
-    Tool to perform web searches via Serper API and retrieve rich results.
+ Tool to perform web searches via Serper API and retrieve rich results.
 
-    It is able to retrieve organic search results, people also ask,
-    related searches, and knowledge graph.
+ It is able to retrieve organic search results, people also ask,
+ related searches, and knowledge graph.
 
-    Args:
-        q: Search query string
-        gl: Optional region code for search results in ISO 3166-1 alpha-2 format (e.g., 'us')
-        hl: Optional language code for search results in ISO 639-1 format (e.g., 'en')
-        location: Optional location for search results (e.g., 'SoHo, New York, United States', 'California, United States')
-        num: Number of results to return (default: 10)
-        tbs: Time-based search filter ('qdr:h' for past hour, 'qdr:d' for past day, 'qdr:w' for past week,
-            'qdr:m' for past month, 'qdr:y' for past year)
-        page: Page number of results to return (default: 1)
-        autocorrect: Whether to autocorrect spelling in query
+ Args:
+ q: Search query string
+ gl: Optional region code for search results in ISO 3166-1 alpha-2 format (e.g., 'us')
+ hl: Optional language code for search results in ISO 639-1 format (e.g., 'en')
+ location: Optional location for search results (e.g., 'SoHo, New York, United States', 'California, United States')
+ num: Number of results to return (default: 10)
+ tbs: Time-based search filter ('qdr:h' for past hour, 'qdr:d' for past day, 'qdr:w' for past week,
+ 'qdr:m' for past month, 'qdr:y' for past year)
+ page: Page number of results to return (default: 1)
+ autocorrect: Whether to autocorrect spelling in query
 
-    Returns:
-        Dictionary containing search results and metadata.
-    """
+ Returns:
+ Dictionary containing search results and metadata.
+ """
     # Check for API key
     if not SERPER_API_KEY:
         return {

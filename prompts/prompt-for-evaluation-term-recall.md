@@ -1,7 +1,7 @@
 # Prompt for Evaluation Term Recall
 
 **Source files**
-- `/path/to/orthopilot/gen_validation/task_all_gen_async.py`
+- `oracle/task_all_gen_async.py`
 
 ## Rewritten prompt
 Extract the smallest shared core medical terms that overlap between the student answer and the reference answer.
@@ -16,7 +16,7 @@ Return valid JSON in the following shape only:
 
 ```json
 {
-  "student": ["term1", "term2"],
-  "answer": ["term1", "term2"]
+ "student": ["term1", "term2"],
+ "answer": ["term1", "term2"]
 }
 ```

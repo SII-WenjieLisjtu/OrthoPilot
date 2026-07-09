@@ -35,12 +35,12 @@ def safe_unquote(s: str, encoding="utf-8", errors="ignore") -> str:
 
 def decode_http_urls_in_dict(data):
     """
-    Traverse all values in the data structure:
-    - If it's a string starting with http, apply urllib.parse.unquote
-    - If it's a list, recursively process each element
-    - If it's a dict, recursively process each value
-    - Other types remain unchanged
-    """
+ Traverse all values in the data structure:
+ - If it's a string starting with http, apply urllib.parse.unquote
+ - If it's a list, recursively process each element
+ - If it's a dict, recursively process each value
+ - Other types remain unchanged
+ """
     if isinstance(data, str):
         if "%" in data:
             return safe_unquote(data)
@@ -65,7 +65,7 @@ def strip_markdown_links(markdown: str) -> str:
         for tok in ts:
             t = tok.type
 
-            # 1) Links: drop the wrapper, keep inner text (children will be rendered)
+            # 1) Links: drop the wrapper, keep inner (children will be rendered)
             if t == "link_open" or t == "link_close":
                 continue
 

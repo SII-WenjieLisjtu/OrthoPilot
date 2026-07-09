@@ -11,19 +11,19 @@ import time
 import uuid
 from typing import Any, Optional
 import importlib
-from config.agent_prompts.base_agent_prompt import BaseAgentPrompt
+from typing import Any
 
 from omegaconf import DictConfig
 
 
-from src.llm.provider_client_base import LLMProviderClientBase
-from src.llm.providers.claude_openrouter_client import ContextLimitError
-from src.logging.logger import bootstrap_logger
-from src.logging.task_tracer import TaskTracer
-from src.tool.manager import ToolManager
-from src.utils.io_utils import OutputFormatter, process_input
-from src.utils.tool_utils import expose_sub_agents_as_tools
-from src.utils.summary_utils import (
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.providers.claude_openrouter_client import ContextLimitError
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.task_tracer import TaskTracer
+from orthopilot_agent.miroflow_core.tool.manager import ToolManager
+from orthopilot_agent.miroflow_core.utils.io_utils import OutputFormatter, process_input
+from orthopilot_agent.miroflow_core.utils.tool_utils import expose_sub_agents_as_tools
+from orthopilot_agent.miroflow_core.utils.summary_utils import (
     extract_hints,
     extract_gaia_final_answer,
     extract_browsecomp_zh_final_answer,
@@ -61,19 +61,19 @@ def _generate_message_id() -> str:
     return f"msg_{uuid.uuid4().hex[:8]}"
 
 
-def _load_agent_prompt_class(prompt_class_name: str) -> BaseAgentPrompt:
-    # Dynamically import the class from the config.agent_prompts module
+def _load_agent_prompt_class(prompt_class_name: str) -> Any:
+    # Dynamically import the class from the public agent prompt package
     if not isinstance(prompt_class_name, str) or not prompt_class_name.isidentifier():
         raise ValueError(f"Invalid prompt class name: {prompt_class_name}")
 
     try:
         # Import the module dynamically
-        agent_prompts_module = importlib.import_module("config.agent_prompts")
+        agent_prompts_module = importlib.import_module("orthopilot_agent.configs.agent_prompts")
         # Get the class from the module
         PromptClass = getattr(agent_prompts_module, prompt_class_name)
     except (ModuleNotFoundError, AttributeError) as e:
         raise ImportError(
-            f"Could not import class '{prompt_class_name}' from 'config.agent_prompts': {e}"
+            f"Could not import class '{prompt_class_name}' from 'orthopilot_agent.configs.agent_prompts': {e}"
         )
     return PromptClass()
 
@@ -127,17 +127,17 @@ class Orchestrator:
 
     @staticmethod
     def _extract_search_references(message_history: list[dict]) -> list[tuple[str, str]]:
-        """从消息历史的工具结果中提取 (title, url) 对."""
+        """result (title, url)."""
         references: list[tuple[str, str]] = []
         seen_urls: set[str] = set()
 
         for msg in message_history:
-            # 工具结果可能以 role="tool" 或嵌入在 content 中
+            # result role="tool" content
             content = ""
             if msg.get("role") == "tool":
                 content = msg.get("content", "")
             elif msg.get("role") == "user" and isinstance(msg.get("content"), list):
-                # 有些 LLM client 把工具结果放在 user message 的 content list 里
+                # LLM client result user message content list
                 for item in msg["content"]:
                     if isinstance(item, dict) and item.get("type") == "text":
                         content += item.get("text", "") + "\n"
@@ -145,7 +145,7 @@ class Orchestrator:
             if not content:
                 continue
 
-            # 提取 google_search 格式: ### N. Title\n**URL**: https://...
+            # google_search: ### N. Title\n**URL**: https://...
             pairs = re.findall(
                 r"###\s*\d+\.\s*(.+?)\n\*\*URL\*\*:\s*(https?://\S+)", content
             )
@@ -155,16 +155,16 @@ class Orchestrator:
                     seen_urls.add(url)
                     references.append((title.strip(), url))
 
-            # 提取 fetch_webpage / query_webpage 的 URL（在 tool_call arguments 中）
-            # 这些通常在 assistant 消息中，这里只处理 tool result 中可能出现的 URL
+            # fetch_webpage / query_webpage URL(tool_call arguments)
+            # assistant, tool result URL
             if "**URL**" not in content:
-                # 尝试提取独立的 URL 行
-                url_matches = re.findall(r"(?:URL|url|网址)[：:]\s*(https?://\S+)", content)
+                # URL
+                url_matches = re.findall(r"(?:URL|url|)[::]\s*(https?://\S+)", content)
                 for url in url_matches:
                     url = url.rstrip("/").strip()
                     if url not in seen_urls:
                         seen_urls.add(url)
-                        # 用域名作为标题
+                        #
                         from urllib.parse import urlparse
                         domain = urlparse(url).netloc
                         references.append((domain, url))
@@ -182,9 +182,9 @@ class Orchestrator:
         agent_type: str = "main",
     ) -> tuple[str | None, bool, Any | None]:
         """Unified LLM call and logging handling
-        Returns:
-            tuple[Optional[str], bool, Optional[object]]: (response_text, should_break, tool_calls_info)
-        """
+ Returns:
+ tuple[Optional[str], bool, Optional[object]]: (response_text, should_break, tool_calls_info)
+ """
 
         # Select correct LLM client based on agent_type
         current_llm_client = (
@@ -252,7 +252,7 @@ class Orchestrator:
                         "llm_thinking",
                         f"LLM thinking for {purpose}",
                         "info",
-                        metadata={"text": thinking_content[:2000]},
+                        metadata={"thinking": thinking_content[:2000]},
                     )
 
                 # Use client's response processing method
@@ -294,7 +294,7 @@ class Orchestrator:
                             "llm_response",
                             f"LLM response for {purpose}",
                             "info",
-                            metadata={"text": assistant_response_text[:1000]},
+                            metadata={"content": assistant_response_text[:1000]},
                         )
                     return assistant_response_text, should_break, tool_calls_info
                 else:
@@ -313,7 +313,7 @@ class Orchestrator:
                 return None, True, None
 
         except asyncio.TimeoutError:
-            logger.debug(f"⚠️ {purpose} timed out")
+            logger.debug(f"WARN {purpose} timed out")
             self.task_log.log_step(
                 f"{purpose.lower().replace(' ', '_')}_timeout",
                 f"{purpose} timed out",
@@ -322,7 +322,7 @@ class Orchestrator:
             return None, True, None
 
         except ContextLimitError as e:
-            logger.debug(f"⚠️ {purpose} context limit exceeded: {e}")
+            logger.debug(f"WARN {purpose} context limit exceeded: {e}")
             self.task_log.log_step(
                 f"{purpose.lower().replace(' ', '_')}_context_limit",
                 f"{purpose} context limit exceeded: {str(e)}",
@@ -332,7 +332,7 @@ class Orchestrator:
             return None, True, "context_limit"
 
         except Exception as e:
-            logger.debug(f"⚠️ {purpose} call failed: {e}")
+            logger.debug(f"WARN {purpose} call failed: {e}")
             self.task_log.log_step(
                 f"{purpose.lower().replace(' ', '_')}_error",
                 f"{purpose} failed: {str(e)}",
@@ -353,16 +353,16 @@ class Orchestrator:
         task_guidence="",
     ):
         """
-        Handle context limit retry logic when processing summary
+ Handle context limit retry logic when processing summary
 
-        Returns:
-            str: final_answer_text - LLM generated summary text, error message on failure
+ Returns:
+ str: final_answer_text - LLM generated summary, error message on failure
 
-        Handle three LLM scenarios:
-        1. Call successful: return generated summary text
-        2. Context limit exceeded or network issues: remove assistant-user dialogue and retry, mark task as failed
-        3. Until only initial system-user messages remain
-        """
+ Handle three LLM scenarios:
+ 1. Call successful: return generated summary
+ 2. Context limit exceeded or network issues: remove assistant-user dialogue and retry, mark task as failed
+ 3. Until only initial system-user messages remain
+ """
         retry_count = 0
 
         while True:
@@ -413,7 +413,7 @@ class Orchestrator:
                     await asyncio.sleep(60)
 
             if response_text:
-                # Call successful: return generated summary text
+                # Call successful: return generated summary
                 return response_text
 
             # Context limit exceeded or network issues: try removing messages and retry
@@ -456,8 +456,8 @@ class Orchestrator:
         self, sub_agent_name, task_description, keep_tool_result: int = -1
     ):
         """
-        Run sub agent
-        """
+ Run sub agent
+ """
         logger.debug(f"\n=== Starting Sub Agent {sub_agent_name} ===")
         task_description += "\n\nPlease provide the answer and detailed supporting information of the subtask given to you."
         logger.debug(f"Subtask: {task_description}")
@@ -787,8 +787,8 @@ class Orchestrator:
         self, task_description, current_question, task_file_name=None, task_id="default_task"
     ):
         """
-        Execute the main end-to-end task.
-        """
+ Execute the main end-to-end task.
+ """
         keep_tool_result = int(self.cfg.main_agent.keep_tool_result)
 
         logger.debug(f"\n{'=' * 20} Starting Task: {task_id} {'=' * 20}")
@@ -818,28 +818,26 @@ Important considerations:
 - Present every possible candidate answer identified during your information gathering, regardless of uncertainty, ambiguity, or incomplete verification. Avoid premature conclusions or omission of any discovered possibility.
 - Explicitly document detailed facts, evidence, and reasoning steps supporting each candidate answer, carefully preserving intermediate analysis results.
 - Clearly flag and retain any uncertainties, conflicting interpretations, or alternative understandings identified during information gathering. Do not arbitrarily discard or resolve these issues on your own.
-- If the question's explicit instructions (e.g., numeric precision, formatting, specific requirements) appear inconsistent, unclear, erroneous, or potentially mismatched with general guidelines or provided examples, explicitly record and clearly present all plausible interpretations and corresponding candidate answers.  
+- If the question's explicit instructions (e.g., numeric precision, formatting, specific requirements) appear inconsistent, unclear, erroneous, or potentially mismatched with general guidelines or provided examples, explicitly record and clearly present all plausible interpretations and corresponding candidate answers.
 
 Recognize that the original task description might itself contain mistakes, imprecision, inaccuracies, or conflicts introduced unintentionally by the user due to carelessness, misunderstanding, or limited expertise. Do NOT try to second-guess or "correct" these instructions internally; instead, transparently present findings according to every plausible interpretation.
 
 Your objective is maximum completeness, transparency, and detailed documentation to empower the user to judge and select their preferred answer independently. Even if uncertain, explicitly documenting the existence of possible answers significantly enhances the user's experience, ensuring no plausible solution is irreversibly omitted due to early misunderstanding or premature filtering.
 """
 
-        # Add Chinese-specific guidance if enabled
+        # Add guidance for Chinese-context benchmarks when enabled.
         if self.chinese_context:
             task_guidence += """
 
-## 中文任务处理指导
+## Task-specific reporting guidance
 
-如果任务涉及中文语境，请遵循以下指导：
+When the task requires Chinese-context answer extraction, keep the response structured and explicit:
 
-- **信息收集策略**：使用中文关键词进行网络搜索，优先浏览中文网页，以获取更准确和全面的中文资源
-- **思考过程**：所有分析、推理、判断等思考过程都应使用中文表达，保持语义的一致性
-- **候选答案收集**：对于中文问题，收集所有可能的中文答案选项，包括不同的表达方式和格式
-- **证据文档化**：保持中文资源的原始格式，避免不必要的翻译或改写，确保信息的准确性
-- **不确定性标注**：使用中文清晰地标记任何不确定性、冲突信息或需要进一步验证的内容
-- **结果组织**：以中文组织和呈现最终报告，使用恰当的中文术语和表达习惯
-- **过程透明化**：所有步骤描述、状态更新、中间结果等都应使用中文，确保用户理解
+- State the key evidence used for each candidate answer.
+- Include the judgement or scoring rationale when applicable.
+- Put the final answer in the answer field or final boxed answer.
+- Preserve important intermediate findings and source content.
+- Clearly label the result and any uncertainty.
 """
 
         initial_user_content[0]["text"] = (
@@ -856,7 +854,7 @@ Your objective is maximum completeness, transparency, and detailed documentation
                     self.chinese_context,
                     self.add_message_id,
                     self.cfg.main_agent.input_process.get(
-                        "hint_llm_base_url", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL"
+                        "hint_llm_base_url", "https://api.openai.com/v1"
                     ),
                 )
                 hint_notes = (
@@ -1077,7 +1075,7 @@ Your objective is maximum completeness, transparency, and detailed documentation
                 tool_result_for_llm = self.output_formatter.format_tool_result_for_user(
                     tool_result
                 )
-                # all_tool_results_content.extend(tool_result_for_llm)  # Collect all tool results
+                # all_tool_results_content.extend(tool_result_for_llm) # Collect all tool results
                 all_tool_results_content_with_id.append((call_id, tool_result_for_llm))
 
             if len(tool_calls) > 1 and len(tool_calls[1]) > 0:
@@ -1152,12 +1150,12 @@ Your objective is maximum completeness, transparency, and detailed documentation
             has_boxed = "\\boxed{" in final_answer_text
             if is_tool_call and not has_boxed:
                 logger.warning(
-                    "Summary response contains tool call text instead of \\boxed{} answer, "
+                    "Summary response contains tool call instead of \\boxed{} answer, "
                     "falling back to last direct answer from main loop"
                 )
                 self.task_log.log_step(
                     "summary_fallback",
-                    "Summary contained tool call text, using last direct answer from main loop",
+                    "Summary contained tool call, using last direct answer from main loop",
                     "warning",
                 )
                 final_answer_text = f"\\boxed{{{last_direct_answer}}}"
@@ -1171,7 +1169,7 @@ Your objective is maximum completeness, transparency, and detailed documentation
             # Log the final answer
             self.task_log.log_step(
                 "final_answer_content", f"Final answer content: {final_answer_text}",
-                metadata={"text": final_answer_text},
+                metadata={"content": final_answer_text},
             )
 
             # Use LLM to extract final answer
@@ -1186,7 +1184,7 @@ Your objective is maximum completeness, transparency, and detailed documentation
                             final_answer_text,
                             self.cfg.main_agent.openai_api_key,
                             self.cfg.main_agent.output_process.get(
-                                "final_answer_llm_base_url", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL"
+                                "final_answer_llm_base_url", "https://api.openai.com/v1"
                             ),
                         )
 
@@ -1211,7 +1209,7 @@ Your objective is maximum completeness, transparency, and detailed documentation
                             self.cfg.main_agent.openai_api_key,
                             self.chinese_context,
                             self.cfg.main_agent.output_process.get(
-                                "final_answer_llm_base_url", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL"
+                                "final_answer_llm_base_url", "https://api.openai.com/v1"
                             ),
                         )
 
@@ -1270,23 +1268,23 @@ Your objective is maximum completeness, transparency, and detailed documentation
         )
 
         # Append search references to final answer (skip if model already included them)
-        _has_refs = "参考来源" in final_boxed_answer or "参考链接" in final_boxed_answer
+        _has_refs = "References" in final_boxed_answer or "Sources" in final_boxed_answer
         search_refs = self._extract_search_references(message_history) if not _has_refs else []
         if search_refs:
-            ref_lines = ["\n\n---\n\n**参考来源：**\n"]
+            ref_lines = ["\n\n---\n\n**References:**\n"]
             for i, (title, url) in enumerate(search_refs, 1):
                 ref_lines.append(f"{i}. [{title}]({url})")
             ref_section = "\n".join(ref_lines)
             final_boxed_answer += ref_section
             final_summary += ref_section
         elif _has_refs:
-            # Model included references but may lack hyperlinks — enrich them
+            # Model included references but may lack hyperlinks - enrich them
             search_refs = self._extract_search_references(message_history)
             if search_refs:
                 url_map = {title: url for title, url in search_refs}
                 enriched = final_boxed_answer
                 for title, url in search_refs:
-                    # Replace plain title text with markdown link (only if not already a link)
+                    # Replace plain title with markdown link (only if not already a link)
                     plain = title
                     linked = f"[{title}]({url})"
                     if plain in enriched and linked not in enriched:

@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import aiohttp
 import requests
 from fastmcp import FastMCP
 from PIL import Image
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 logger = logging.getLogger("miroflow")
 
@@ -29,7 +29,7 @@ VISION_API_KEY = os.environ.get("VISION_API_KEY")
 VISION_BASE_URL = os.environ.get("VISION_BASE_URL")
 VISION_MODEL_NAME = os.environ.get("VISION_MODEL_NAME")
 
-# 图片大小限制（10MB）
+# (10MB)
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
 
 # Initialize FastMCP server
@@ -54,13 +54,13 @@ def guess_mime_media_type_from_extension(file_path: str) -> str:
 def resize_image_if_needed(image_bytes: bytes, max_size: int = MAX_IMAGE_SIZE) -> tuple[bytes, str]:
     """Resize image if it exceeds max_size, maintaining aspect ratio.
 
-    Args:
-        image_bytes: Original image bytes
-        max_size: Maximum size in bytes (default 10MB)
+ Args:
+ image_bytes: Original image bytes
+ max_size: Maximum size in bytes (default 10MB)
 
-    Returns:
-        Tuple of (resized_image_bytes, mime_type)
-    """
+ Returns:
+ Tuple of (resized_image_bytes, mime_type)
+ """
     original_size = len(image_bytes)
 
     if original_size <= max_size:
@@ -154,13 +154,13 @@ def resize_image_if_needed(image_bytes: bytes, max_size: int = MAX_IMAGE_SIZE) -
 async def visual_question_answering(image_path_or_url: str, question: str) -> str:
     """Ask question about an image or a video and get the answer with a vision language model.
 
-    Args:
-        image_path_or_url: The path of the image file locally or its URL.
-        question: The question to ask about the image.
+ Args:
+ image_path_or_url: The path of the image file locally or its URL.
+ question: The question to ask about the image.
 
-    Returns:
-        The answer to the image-related question.
-    """
+ Returns:
+ The answer to the image-related question.
+ """
     logger.info(f"Vision tool called with image: {image_path_or_url[:100]}, question: {question[:100]}")
 
     messages_for_llm = [
@@ -186,9 +186,9 @@ async def visual_question_answering(image_path_or_url: str, question: str) -> st
         if not image_path_or_url.startswith(('/', 'http://', 'https://', 'data:')):
             error_msg = (
                 f"Error: Invalid image path '{image_path_or_url}'. "
-                f"Please provide the FULL absolute path (e.g., /path/to/uploads/image.jpg), "
+                f"Please provide the FULL absolute path (e.g., uploads/image.jpg), "
                 f"not just the filename. Check the user's message for the complete path in format: "
-                f"[附件: filename (文件路径: /full/path)]"
+                f"[: filename (filepath: /full/path)]"
             )
             logger.error(error_msg)
             return error_msg
@@ -196,21 +196,21 @@ async def visual_question_answering(image_path_or_url: str, question: str) -> st
         if os.path.exists(image_path_or_url):  # Check if the file exists locally
             logger.info(f"Reading local image file: {image_path_or_url}")
 
-            # 读取文件
+            # file
             with open(image_path_or_url, "rb") as image_file:
                 image_bytes = image_file.read()
 
             file_size = len(image_bytes)
             logger.info(f"Image file size: {file_size} bytes")
 
-            # 如果图片过大，自动调整大小
+            #,
             if file_size > MAX_IMAGE_SIZE:
                 logger.info(f"Image exceeds max size, will resize automatically")
                 image_bytes, mime_type = resize_image_if_needed(image_bytes, MAX_IMAGE_SIZE)
             else:
                 mime_type = guess_mime_media_type_from_extension(image_path_or_url)
 
-            # 编码为 base64
+            # base64
             image_data = base64.b64encode(image_bytes).decode("utf-8")
             messages_for_llm[0]["content"][0]["image_url"]["url"] = (
                 f"data:{mime_type};base64,{image_data}"
@@ -225,7 +225,7 @@ async def visual_question_answering(image_path_or_url: str, question: str) -> st
                         image_bytes = await resp.read()
                         logger.info(f"Downloaded image size: {len(image_bytes)} bytes")
 
-                        # 如果图片过大，自动调整大小
+                        #,
                         if len(image_bytes) > MAX_IMAGE_SIZE:
                             logger.info(f"Downloaded image exceeds max size, will resize automatically")
                             image_bytes, mime_type = resize_image_if_needed(image_bytes, MAX_IMAGE_SIZE)
@@ -279,7 +279,7 @@ async def visual_question_answering(image_path_or_url: str, question: str) -> st
         result = response.json()
         content = result["choices"][0]["message"]["content"]
 
-        # 处理 Gemini 2.5 Pro 的响应格式：content 可能是字典 {'text': '...'}
+        # Gemini 2.5 Pro: content may be returned as {'text': '...'}
         if isinstance(content, dict) and "text" in content:
             answer = content["text"]
         else:

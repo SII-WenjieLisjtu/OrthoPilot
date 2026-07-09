@@ -1,5 +1,5 @@
 """
-MiroFlow Marketplace - 工具与技能市场系统
+MiroFlow Marketplace -
 """
 
 from .tool_registry import ToolRegistry, ToolMetadata

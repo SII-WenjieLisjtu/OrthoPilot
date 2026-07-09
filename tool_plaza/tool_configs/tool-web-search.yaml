@@ -1,7 +1,7 @@
 name: "tool-web-search"
 tool_command: "python"
 args:
-  - "-m"
-  - "tool_plaza.mcp_servers.web_search_mcp_server"
+ - "-m"
+ - "tool_plaza.mcp_servers.web_search_mcp_server"
 env:
-  FATHOM_SANDBOX_URL: "${oc.env:FATHOM_SANDBOX_URL,http://YOUR_HOST:YOUR_PORT"
+ FATHOM_SANDBOX_URL: "${oc.env:FATHOM_SANDBOX_URL,http://localhost:9006}"

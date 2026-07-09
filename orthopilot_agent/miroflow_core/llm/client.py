@@ -7,7 +7,7 @@ from typing import Optional
 from omegaconf import DictConfig, OmegaConf
 import importlib
 
-from src.logging.task_tracer import TaskTracer
+from orthopilot_agent.miroflow_core.logging.task_tracer import TaskTracer
 
 
 def LLMClient(
@@ -18,11 +18,11 @@ def LLMClient(
     **kwargs,
 ):
     """
-    create LLMClientProvider from hydra configuration.
-    Can accept either:
-    - cfg: Traditional config with cfg.llm structure
-    - llm_config: Direct LLM configuration
-    """
+ create LLMClientProvider from hydra configuration.
+ Can accept either:
+ - cfg: Traditional config with cfg.llm structure
+ - llm_config: Direct LLM configuration
+ """
     if llm_config is not None:
         # Direct LLM config provided
         provider_class = llm_config.provider_class
@@ -38,7 +38,7 @@ def LLMClient(
 
     assert isinstance(config, DictConfig), "expect a dict config"
 
-    # Dynamically import the provider class from the .providers module
+    # Dynamically import the provider class from the.providers module
 
     # Validate provider_class is a string and a valid identifier
     if not isinstance(provider_class, str) or not provider_class.isidentifier():

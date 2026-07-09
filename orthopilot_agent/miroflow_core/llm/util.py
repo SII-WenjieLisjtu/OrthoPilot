@@ -13,11 +13,11 @@ def with_timeout(
     timeout_s: float = 300.0,
 ) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """
-    Decorator: wraps any *async* function in asyncio.wait_for().
-    Usage:
-        @with_timeout(20)
-        async def create_message_foo(...): ...
-    """
+ Decorator: wraps any *async* function in asyncio.wait_for().
+ Usage:
+ @with_timeout(20)
+ async def create_message_foo(...):...
+ """
 
     def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @functools.wraps(func)

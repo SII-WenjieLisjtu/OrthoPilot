@@ -1,11 +1,11 @@
 # """
-# fetchers_async.py – Orchestrates multiple specialised fetchers **without changing
+# fetchers_async.py - Orchestrates multiple specialised fetchers **without changing
 # its public surface** (`async def fetch_url(url: str) -> str`).
 
 # Order of strategies (after specialised handlers):
-#     1. **Jina AI**         – fast & cheap full‑text extraction
-#     2. **Crawl4AI**        – browser‑based heavy‑weight fallback
-#     3. **Legacy HTML**     – trafilatura / readability last‑chance scrape
+# 1. **Jina AI** - fast & cheap full- extraction
+# 2. **Crawl4AI** - browser-based heavy-weight fallback
+# 3. **Legacy HTML** - trafilatura / readability last-chance scrape
 
 # Specialised fetchers (PDF, YouTube, Reddit) remain unchanged.
 # """
@@ -29,54 +29,54 @@
 
 
 # def _looks_error(txt: str | None) -> bool:
-#     return not txt or txt.strip().lower().startswith(_ERR_PREFIXES)
+# return not txt or txt.strip().lower().startswith(_ERR_PREFIXES)
 
 
 # async def _thread_wrapper(fn: Callable[[str], str], url: str) -> str | None:
-#     try:
-#         return await asyncio.to_thread(fn, url)
-#     except Exception as exc:
-#         logging.debug("%s threw in thread: %s", fn.__name__, exc)
+# try:
+# return await asyncio.to_thread(fn, url)
+# except Exception as exc:
+# logging.debug("%s threw in thread: %s", fn.__name__, exc)
 
 # @retry
 # async def fetch_url(url: str) -> str:
-#     url_l = url.lower()
-    
+# url_l = url.lower()
 
-#     # 1 – Jina AI ------------------------------------------------------------
-#     if (out := await _thread_wrapper(fetch_jina, url)) and not _looks_error(out):
-#         return out
-    
-#     # if (out := await _thread_wrapper(fetch_html, url)) and not _looks_error(out):
-#     #     return out
 
-#     # 2 – Crawl4AI -----------------------------------------------------------
-#     try:
-#         md = await fetch_crawl4ai(url)
-#         if not _looks_error(md):
-#             return md
-#     except Exception as e:
-#         logging.debug("Crawl4AI failed: %s", e)
-        
-#     if "pdf" in url_l:
-#         if (out := await _thread_wrapper(fetch_pdf, url)) and not _looks_error(out):
-#             return out
-        
-#     if "reddit" in url_l:
-#         if (out := await _thread_wrapper(fetch_reddit, url)) and not _looks_error(out):
-#             return out
-#     if "youtube" in url_l:
-#         if (out := await _thread_wrapper(fetch_youtube, url)) and not _looks_error(out):
-#             return out
-#     if "github" in url_l:
-#         if (out := await _thread_wrapper(fetch_github, url)) and not _looks_error(out):
-#             return out
+# # 1 - Jina AI ------------------------------------------------------------
+# if (out:= await _thread_wrapper(fetch_jina, url)) and not _looks_error(out):
+# return out
 
-#     # 3 – Basic HTML --------------------------------------------------------
-#     if (out := await _thread_wrapper(fetch_html, url)) and not _looks_error(out):
-#         return out
+# # if (out:= await _thread_wrapper(fetch_html, url)) and not _looks_error(out):
+# # return out
 
-#     return "[error fetch_url exhausted all methods]"
+# # 2 - Crawl4AI -----------------------------------------------------------
+# try:
+# md = await fetch_crawl4ai(url)
+# if not _looks_error(md):
+# return md
+# except Exception as e:
+# logging.debug("Crawl4AI failed: %s", e)
+
+# if "pdf" in url_l:
+# if (out:= await _thread_wrapper(fetch_pdf, url)) and not _looks_error(out):
+# return out
+
+# if "reddit" in url_l:
+# if (out:= await _thread_wrapper(fetch_reddit, url)) and not _looks_error(out):
+# return out
+# if "youtube" in url_l:
+# if (out:= await _thread_wrapper(fetch_youtube, url)) and not _looks_error(out):
+# return out
+# if "github" in url_l:
+# if (out:= await _thread_wrapper(fetch_github, url)) and not _looks_error(out):
+# return out
+
+# # 3 - Basic HTML --------------------------------------------------------
+# if (out:= await _thread_wrapper(fetch_html, url)) and not _looks_error(out):
+# return out
+
+# return "[error fetch_url exhausted all methods]"
 
 
 
@@ -120,14 +120,14 @@ async def fetch_url(url: str) -> str:
             result = await asyncio.wait_for(coro, timeout=timeout)
             elapsed = (time.perf_counter() - start_ts) * 1000
             if result and not _looks_error(result):
-                logging.info(f"[{name}] ✅ success in {elapsed:.1f} ms")
+                logging.info(f"[{name}] OK success in {elapsed:.1f} ms")
                 return result
-            logging.warning(f"[{name}] ❌ error response in {elapsed:.1f} ms")
+            logging.warning(f"[{name}] ERROR error response in {elapsed:.1f} ms")
         except asyncio.TimeoutError:
-            logging.warning(f"[{name}] ⏱️ timed-out after {timeout}s")
+            logging.warning(f"[{name}] timeout timed-out after {timeout}s")
         except Exception as e:
             elapsed = (time.perf_counter() - start_ts) * 1000
-            logging.warning(f"[{name}] 💥 exception in {elapsed:.1f} ms → {e}")
+            logging.warning(f"[{name}] error exception in {elapsed:.1f} ms -> {e}")
         return None
 
     async def try_chain(*fetchers) -> str | None:
@@ -149,11 +149,11 @@ async def fetch_url(url: str) -> str:
         return await try_chain(fetch_jina, fetch_youtube)
     if url_l.endswith(".pdf") or "pdf" in url_l:
         return await try_chain(fetch_jina, fetch_pdf, fetch_html, fetch_crawl4ai)
-  
 
-   
+
+
     # return await try_chain(fetch_jina) or "[error could not load page]"
-   
+
 
     # -------------- generic fallback ---------------------
     return (await try_chain(fetch_jina, fetch_crawl4ai, fetch_html)

@@ -10,7 +10,7 @@ from mcp import ClientSession, StdioServerParameters  # (already imported in con
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 from tool_plaza.mcp_servers.browser_session import PlaywrightSession
 
 import os
@@ -25,9 +25,9 @@ def update_server_params_with_context_var(
     server_params: StdioServerParameters,
 ) -> StdioServerParameters:
     """
-    Update the server params with the context var.
-    """
-    from src.logging.logger import TASK_CONTEXT_VAR
+ Update the server params with the con var.
+ """
+    from orthopilot_agent.miroflow_core.logging.logger import TASK_CONTEXT_VAR
 
     if TASK_CONTEXT_VAR.get() is not None:
         server_params.env["TASK_ID"] = TASK_CONTEXT_VAR.get()
@@ -36,11 +36,11 @@ def update_server_params_with_context_var(
 
 def with_timeout(timeout_s: float = 300.0):
     """
-    Decorator: wraps any *async* function in asyncio.wait_for().
-    Usage:
-        @with_timeout(20)
-        async def create_message_foo(...): ...
-    """
+ Decorator: wraps any *async* function in asyncio.wait_for().
+ Usage:
+ @with_timeout(20)
+ async def create_message_foo(...):...
+ """
 
     def decorator(
         func: Callable[..., Awaitable[R]],
@@ -66,9 +66,9 @@ class ToolManagerProtocol(Protocol):
 class ToolManager(ToolManagerProtocol):
     def __init__(self, server_configs, tool_blacklist=None):
         """
-        Initialize ToolManager.
-        :param server_configs: List returned by create_server_parameters()
-        """
+ Initialize ToolManager.
+:param server_configs: List returned by create_server_parameters()
+ """
         self.server_configs = server_configs
         self.server_dict = {
             config["name"]: config["params"] for config in server_configs
@@ -82,21 +82,21 @@ class ToolManager(ToolManagerProtocol):
 
     def _is_huggingface_dataset_or_space_url(self, url):
         """
-        Check if the URL is a Hugging Face dataset or space URL.
-        :param url: The URL to check
-        :return: True if it's a HuggingFace dataset or space URL, False otherwise
-        """
+ Check if the URL is a Hugging Face dataset or space URL.
+:param url: The URL to check
+:return: True if it's a HuggingFace dataset or space URL, False otherwise
+ """
         if not url:
             return False
         return "huggingface.co/datasets" in url or "huggingface.co/spaces" in url
 
     def _should_block_hf_scraping(self, tool_name, arguments):
         """
-        Check if we should block scraping of Hugging Face datasets/spaces.
-        :param tool_name: The name of the tool being called
-        :param arguments: The arguments passed to the tool
-        :return: True if scraping should be blocked, False otherwise
-        """
+ Check if we should block scraping of Hugging Face datasets/spaces.
+:param tool_name: The name of the tool being called
+:param arguments: The arguments passed to the tool
+:return: True if scraping should be blocked, False otherwise
+ """
         return (
             tool_name == "scrape"
             and arguments.get("url")
@@ -109,10 +109,10 @@ class ToolManager(ToolManagerProtocol):
 
     async def _find_servers_with_tool(self, tool_name):
         """
-        Find servers containing the specified tool name among all servers
-        :param tool_name: Tool name to search for
-        :return: List of server names containing the tool
-        """
+ Find servers containing the specified tool name among all servers
+:param tool_name: Tool name to search for
+:return: List of server names containing the tool
+ """
         servers_with_tool = []
 
         for config in self.server_configs:
@@ -150,7 +150,7 @@ class ToolManager(ToolManagerProtocol):
                                 # Consistent with get_all_tool_definitions: SSE part has no blacklist processing
                                 # Can add specific tool filtering logic here (if needed)
                                 # if server_name == "tool-excel" and tool.name not in ["get_workbook_metadata", "read_data_from_excel"]:
-                                #     continue
+                                # continue
                                 if tool.name == tool_name:
                                     servers_with_tool.append(server_name)
                                     break
@@ -170,9 +170,9 @@ class ToolManager(ToolManagerProtocol):
 
     async def get_all_tool_definitions(self):
         """
-        Connect to all configured servers and get their tool definitions.
-        Returns a list suitable for passing to Prompt generators.
-        """
+ Connect to all configured servers and get their tool definitions.
+ Returns a list suitable for passing to Prompt generators.
+ """
         all_servers_for_prompt = []
         # Handle remote server tools
         for config in self.server_configs:
@@ -218,7 +218,7 @@ class ToolManager(ToolManagerProtocol):
                             for tool in tools_response.tools:
                                 # Can add specific tool filtering logic here (if needed)
                                 # if server_name == "tool-excel" and tool.name not in ["get_workbook_metadata", "read_data_from_excel"]:
-                                #     continue
+                                # continue
                                 one_server_for_prompt["tools"].append(
                                     {
                                         "name": tool.name,
@@ -254,12 +254,12 @@ class ToolManager(ToolManagerProtocol):
     @with_timeout(900)
     async def execute_tool_call(self, server_name, tool_name, arguments) -> Any:
         """
-        Execute a single tool call.
-        :param server_name: Server name
-        :param tool_name: Tool name
-        :param arguments: Tool arguments dictionary
-        :return: Dictionary containing result or error
-        """
+ Execute a single tool call.
+:param server_name: Server name
+:param tool_name: Tool name
+:param arguments: Tool arguments dictionary
+:return: Dictionary containing result or error
+ """
 
         # Original remote server call logic
         server_params = self.get_server_params(server_name)
@@ -334,7 +334,7 @@ class ToolManager(ToolManagerProtocol):
                 )
 
                 # Check if result is empty and provide better feedback
-                if tool_result is None or tool_result == "":
+                if tool_result is None or not tool_result:
                     logger.error(
                         f"Tool '{tool_name}' returned empty result, this may be normal (such as delete operations) or the tool execution may have issues"
                     )
@@ -381,7 +381,7 @@ class ToolManager(ToolManagerProtocol):
                                             text_content  # Preserve original format!
                                         )
                                     else:
-                                        result_content = f"Tool '{tool_name}' completed but returned empty text - this may be expected or indicate an issue"
+                                        result_content = f"Tool '{tool_name}' completed but returned empty - this may be expected or indicate an issue"
                                 else:
                                     result_content = f"Tool '{tool_name}' completed but returned no content - this may be expected or indicate an issue"
 
@@ -424,7 +424,7 @@ class ToolManager(ToolManagerProtocol):
                                             text_content  # Preserve original format!
                                         )
                                     else:
-                                        result_content = f"Tool '{tool_name}' completed but returned empty text - this may be expected or indicate an issue"
+                                        result_content = f"Tool '{tool_name}' completed but returned empty - this may be expected or indicate an issue"
                                 else:
                                     result_content = f"Tool '{tool_name}' completed but returned no content - this may be expected or indicate an issue"
 
@@ -469,7 +469,7 @@ class ToolManager(ToolManagerProtocol):
                 return {
                     "server_name": server_name,
                     "tool_name": tool_name,
-                    "result": result_content,  # Return extracted text content
+                    "result": result_content,  # Return extracted content
                 }
 
             except Exception as outer_e:  # Rename this to outer_e to avoid shadowing
@@ -500,7 +500,7 @@ class ToolManager(ToolManagerProtocol):
                         return {
                             "server_name": server_name,
                             "tool_name": tool_name,
-                            "result": result.text_content,  # Return extracted text content
+                            "result": result.text_content,  # Return extracted content
                         }
                     except (
                         Exception

@@ -19,9 +19,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
 logger = bootstrap_logger(level=LOGGER_LEVEL)
@@ -61,11 +61,11 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
         keep_tool_result: int = -1,
     ):
         """
-        Send message to OpenAI API.
-        :param system_prompt: System prompt string.
-        :param messages: Message history list.
-        :return: OpenAI API response object or None (if error).
-        """
+ Send message to OpenAI API.
+:param system_prompt: System prompt string.
+:param messages: Message history list.
+:return: OpenAI API response object or None (if error).
+ """
         logger.debug(f" Calling LLM ({'async' if self.async_client else 'sync'})")
         # put the system prompt in the first message since OpenAI API does not support system prompt in
         if system_prompt:
@@ -171,7 +171,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
             if (
                 response.choices
                 and response.choices[0].finish_reason == "stop"
-                and response.choices[0].message.content.strip() == ""
+                and not response.choices[0].message.content.strip()
             ):
                 logger.debug(
                     "LLM finish_reason is 'stop', but content is empty, triggering Error"
@@ -218,7 +218,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
 
     def _clean_user_content_from_response(self, text: str) -> str:
         """Remove content between \\n\\nUser: and <use_mcp_tool> in assistant response (if no <use_mcp_tool>, remove to end)"""
-        # Match content between \n\nUser: and <use_mcp_tool>, if no <use_mcp_tool> delete to text end
+        # Match content between \n\nUser: and <use_mcp_tool>, if no <use_mcp_tool> delete to end
         pattern = r"\n\nUser:.*?(?=<use_mcp_tool>|$)"
         cleaned_text = re.sub(pattern, "", text, flags=re.MULTILINE | re.DOTALL)
 
@@ -234,7 +234,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
             logger.error(f"Should never happen: {error_msg}")
             return "", True  # Exit loop
 
-        # Extract LLM response text
+        # Extract LLM response
         if llm_response.choices[0].finish_reason == "stop":
             assistant_response_text = llm_response.choices[0].message.content or ""
             # remove user: {...} content
@@ -246,7 +246,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
             )
         elif llm_response.choices[0].finish_reason == "length":
             assistant_response_text = llm_response.choices[0].message.content or ""
-            if assistant_response_text == "":
+            if not assistant_response_text:
                 assistant_response_text = "LLM response is empty. This is likely due to thinking block used up all tokens."
             else:
                 assistant_response_text = self._clean_user_content_from_response(
@@ -256,11 +256,11 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
                 {"role": "assistant", "content": assistant_response_text}
             )
         elif llm_response.choices[0].finish_reason == "tool_calls":
-            # For tool_calls, we need to extract tool call information as text
+            # For tool_calls, we need to extract tool call information as
             tool_calls = llm_response.choices[0].message.tool_calls
             assistant_response_text = llm_response.choices[0].message.content or ""
 
-            # If there's no text content, we generate a text describing the tool call
+            # If there's no content, we generate a describing the tool call
             if not assistant_response_text:
                 tool_call_descriptions = []
                 for tool_call in tool_calls:
@@ -303,7 +303,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
 
     def extract_tool_calls_info(self, llm_response, assistant_response_text):
         """Extract tool call information from OpenAI LLM response"""
-        from src.utils.parsing_utils import parse_llm_response_for_tool_calls
+        from orthopilot_agent.miroflow_core.utils.parsing_utils import parse_llm_response_for_tool_calls
 
         # For OpenAI, directly get tool calls from response object
         if llm_response.choices[0].finish_reason == "tool_calls":
@@ -335,7 +335,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
 
         total_calls = len(valid_tool_calls) + len(bad_tool_calls)
 
-        # Build output text
+        # Build output
         output_parts = []
 
         if total_calls > 1:
@@ -352,11 +352,11 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
 
             # Output each valid tool call result according to format
             for i, (tool_id, content) in enumerate(valid_tool_calls, 1):
-                output_parts.append(f"Valid tool call {i} result:\n'text']}")
+                output_parts.append(f"Valid tool call {i} result:\n{content["text"]}")
 
             # Output bad tool calls results
             for i, (tool_id, content) in enumerate(bad_tool_calls, 1):
-                output_parts.append(f"Failed tool call {i} result:\n'text']}")
+                output_parts.append(f"Failed tool call {i} result:\n{content["text"]}")
         else:
             # For single tool call, output result directly
             for tool_id, content in valid_tool_calls:
@@ -375,13 +375,13 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
         return message_history
 
     def parse_llm_response(self, llm_response) -> str:
-        """Parse OpenAI LLM response to get text content"""
+        """Parse OpenAI LLM response to get content"""
         if not llm_response or not llm_response.choices:
             raise ValueError("LLM did not return a valid response.")
         return llm_response.choices[0].message.content
 
     def _estimate_tokens(self, text: str) -> int:
-        """Use tiktoken to estimate token count of text"""
+        """Use tiktoken to estimate token count of """
         if not hasattr(self, "encoding"):
             # Initialize tiktoken encoder
             try:
@@ -416,7 +416,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
             if (turn["role"] == "user" and user_turns_processed < 1) or (
                 turn["role"] == "system"
             ):
-                # Add ephemeral cache control to the text part of the last user message
+                # Add ephemeral cache control to the part of the last user message
                 new_content = []
                 processed_text = False
                 # Check if content is a list
@@ -441,7 +441,7 @@ class DeepSeekOpenRouterClient(LLMProviderClientBase):
                         {"role": turn["role"], "content": new_content}
                     )
                 else:
-                    # If content is not a list (e.g., plain text), add as is without cache control
+                    # If content is not a list (e.g., plain), add as is without cache control
                     # Or adjust logic as needed
                     logger.debug(
                         "Warning: User message content is not in expected list format, cache control not applied."

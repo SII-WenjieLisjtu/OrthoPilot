@@ -1,6 +1,6 @@
 """Tool Call API Server
 
-高性能异步API服务器，支持工具调用和高并发
+API,
 """
 import asyncio
 import os
@@ -16,8 +16,8 @@ from pydantic import BaseModel, Field
 import uvicorn
 from dotenv import load_dotenv
 
-# 加载环境变量
-# 优先加载 .env 文件，如果不存在则尝试加载 .openai 文件（向后兼容）
+# load
+# load.env file, does not existload.openai file()
 env_file = Path(__file__).parent / ".env"
 openai_file = Path(__file__).parent / ".openai"
 
@@ -43,116 +43,116 @@ from tools.semanticscholar import SemanticScholarSearchTool
 from logger_config import server_logger as logger, tool_logger, truncate_text
 
 
-# ============= 数据模型 =============
+# ============= model =============
 class ToolExecuteRequest(BaseModel):
-    """工具执行请求"""
-    tool_name: str = Field(..., description="工具名称")
-    parameters: Dict[str, Any] = Field(default_factory=dict, description="工具参数")
+    """Request body for executing a registered tool."""
+    tool_name: str = Field(..., description="Tool name")
+    parameters: Dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
 
 
 class ToolExecuteResponse(BaseModel):
-    """工具执行响应"""
-    success: bool = Field(..., description="执行是否成功")
-    tool_name: str = Field(..., description="工具名称")
-    data: Any = Field(None, description="返回数据")
-    error: Optional[str] = Field(None, description="错误信息")
-    execution_time: float = Field(..., description="执行时间(秒)")
-    timestamp: str = Field(..., description="时间戳")
+    """Response body returned after tool execution."""
+    success: bool = Field(..., description="Whether execution succeeded")
+    tool_name: str = Field(..., description="Tool name")
+    data: Any = Field(None, description="Tool result payload")
+    error: Optional[str] = Field(None, description="Error message, if any")
+    execution_time: float = Field(..., description="Execution time in seconds")
+    timestamp: str = Field(..., description="Response timestamp")
 
 
 class ToolListResponse(BaseModel):
-    """工具列表响应"""
-    total_tools: int = Field(..., description="工具总数")
-    categories: Dict[str, int] = Field(..., description="分类统计")
-    tools: List[str] = Field(..., description="工具名称列表")
+    """Response body listing available tools."""
+    total_tools: int = Field(..., description="Total number of tools")
+    categories: Dict[str, int] = Field(..., description="Tool count by category")
+    tools: List[str] = Field(..., description="Available tool names")
 
 
-# ============= 工具管理器 =============
+# ============= Main =============
 class ToolRegistry:
-    """工具注册中心"""
+    """"""
 
     def __init__(self):
         self.tools: Dict[str, Tool] = {}
-        self.executor = ThreadPoolExecutor(max_workers=50)  # 线程池用于CPU密集型任务
+        self.executor = ThreadPoolExecutor(max_workers=50)  # CPU-bound tasks
         self._initialize_tools()
 
     def _initialize_tools(self):
-        """初始化所有工具"""
-        logger.info("开始初始化工具注册中心...")
+        """"""
+        logger.info("...")
 
         try:
-            # 基础工具
-            logger.info("注册基础工具...")
+            #
+            logger.info("...")
             self.register_tool(EchoTool())
 
-            # CPubMed核心工具
-            logger.info("注册CPubMed核心工具...")
+            # CPubMed
+            logger.info("CPubMed...")
             self.register_tool(CPubMedTool())
             self.register_tool(CPubMedRelationTool())
 
-            # CPubMed实用工具
-            logger.info("注册CPubMed实用工具...")
+            # CPubMed
+            logger.info("CPubMed...")
             self.register_tool(CPubMedDatabaseSummaryTool())
             self.register_tool(CPubMedGetEntityTypeTool())
             self.register_tool(CPubMedFuzzySearchTool())
 
-            # CPubMed关系专用工具
-            logger.info("注册CPubMed关系专用工具（45个）...")
+            # CPubMed
+            logger.info("CPubMed(45)...")
             for relation_name, tool_class in RELATION_TOOL_CLASSES.items():
                 try:
                     tool = tool_class()
                     self.register_tool(tool)
                 except Exception as e:
-                    logger.error(f"注册关系工具失败 {relation_name}: {e}")
+                    logger.error(f" {relation_name}: {e}")
 
-            # MedicalBook工具
-            logger.info("注册MedicalBook工具...")
+            # MedicalBook
+            logger.info("Loading MedicalBook...")
             self.register_tool(MedicalBookTool())
 
-            # Semantic Scholar工具
-            logger.info("注册Semantic Scholar工具...")
+            # Semantic Scholar
+            logger.info("Semantic Scholar...")
             self.register_tool(SemanticScholarSearchTool())
 
-            logger.info(f"工具注册完成，共注册 {len(self.tools)} 个工具")
+            logger.info(f", {len(self.tools)} ")
 
         except Exception as e:
-            logger.error(f"工具初始化失败: {e}", exc_info=True)
+            logger.error(f": {e}", exc_info=True)
             raise
 
     def register_tool(self, tool: Tool):
-        """注册工具"""
+        """"""
         self.tools[tool.name] = tool
-        logger.debug(f"已注册工具: {tool.name}")
+        logger.debug(f": {tool.name}")
 
     def get_tool(self, tool_name: str) -> Optional[Tool]:
-        """获取工具"""
+        """"""
         return self.tools.get(tool_name)
 
     def list_tools(self) -> List[str]:
-        """列出所有工具名称"""
+        """"""
         return list(self.tools.keys())
 
     async def execute_tool_async(self, tool_name: str, parameters: Dict[str, Any]) -> ToolExecuteResponse:
-        """异步执行工具"""
+        """"""
         start_time = time.time()
 
-        # 记录工具执行开始，截断参数长度
+        #,
         params_str = truncate_text(str(parameters), 200)
-        tool_logger.info(f"开始执行工具: {tool_name}, 参数: {params_str}")
+        tool_logger.info(f": {tool_name},: {params_str}")
 
         tool = self.get_tool(tool_name)
         if not tool:
-            tool_logger.error(f"工具不存在: {tool_name}")
+            tool_logger.error(f"does not exist: {tool_name}")
             return ToolExecuteResponse(
                 success=False,
                 tool_name=tool_name,
-                error=f"工具 '{tool_name}' 不存在",
+                error=f" '{tool_name}' does not exist",
                 execution_time=time.time() - start_time,
                 timestamp=datetime.now().isoformat()
             )
 
         try:
-            # 在线程池中执行工具（避免阻塞事件循环）
+            # ()
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 self.executor,
@@ -162,12 +162,12 @@ class ToolRegistry:
 
             execution_time = time.time() - start_time
 
-            # 记录执行结果，截断数据长度
+            # result,
             if response.success:
                 data_preview = truncate_text(str(response.data), 300)
-                tool_logger.info(f"工具执行成功: {tool_name}, 耗时: {execution_time:.3f}s, 数据预览: {data_preview}")
+                tool_logger.info(f": {tool_name},: {execution_time:.3f}s,: {data_preview}")
             else:
-                tool_logger.warning(f"工具执行失败: {tool_name}, 耗时: {execution_time:.3f}s, 错误: {response.error}")
+                tool_logger.warning(f": {tool_name},: {execution_time:.3f}s, error: {response.error}")
 
             return ToolExecuteResponse(
                 success=response.success,
@@ -180,7 +180,7 @@ class ToolRegistry:
 
         except Exception as e:
             execution_time = time.time() - start_time
-            error_msg = f"工具执行异常: {str(e)}"
+            error_msg = f": {str(e)}"
             tool_logger.error(f"{error_msg}", exc_info=True)
 
             return ToolExecuteResponse(
@@ -192,16 +192,16 @@ class ToolRegistry:
             )
 
 
-# ============= FastAPI应用 =============
+# ============= FastAPI =============
 app = FastAPI(
     title="Tool Call API Server",
-    description="医学知识图谱工具调用API服务",
+    description="API",
     version="0.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# CORS配置
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -210,44 +210,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 全局工具注册中心
+#
 tool_registry = None
 
 
 @app.on_event("startup")
 async def startup_event():
-    """启动事件"""
+    """"""
     global tool_registry
     logger.info("=" * 80)
-    logger.info("Tool Call API Server 启动中...")
+    logger.info("Tool Call API Server...")
     logger.info("=" * 80)
 
     try:
         tool_registry = ToolRegistry()
-        logger.info("服务器启动成功！")
-        logger.info(f"已注册工具数: {len(tool_registry.tools)}")
-        logger.info(f"API文档: http://YOUR_HOST:YOUR_PORT")
+        logger.info("!")
+        logger.info(f": {len(tool_registry.tools)}")
+        logger.info(f"API: http://localhost:8000")
         logger.info("=" * 80)
     except Exception as e:
-        logger.error(f"服务器启动失败: {e}", exc_info=True)
+        logger.error(f": {e}", exc_info=True)
         raise
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """关闭事件"""
-    logger.info("Tool Call API Server 关闭中...")
+    """"""
+    logger.info("Tool Call API Server...")
     if tool_registry:
         tool_registry.executor.shutdown(wait=True)
-    logger.info("服务器已关闭")
+    logger.info("")
 
 
-# ============= API路由 =============
+# ============= API =============
 
-@app.get("/", tags=["系统"])
+@app.get("/", tags=["service"])
 async def root():
-    """根路径"""
-    logger.debug("访问根路径")
+    """path"""
+    logger.debug("Root endpoint requested")
     return {
         "service": "Tool Call API Server",
         "version": "1.0.0",
@@ -257,10 +257,10 @@ async def root():
     }
 
 
-@app.get("/health", tags=["系统"])
+@app.get("/health", tags=["health"])
 async def health_check():
-    """健康检查"""
-    logger.debug("健康检查")
+    """"""
+    logger.debug("Health check requested")
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -268,38 +268,38 @@ async def health_check():
     }
 
 
-@app.get("/tools", response_model=ToolListResponse, tags=["工具管理"])
+@app.get("/tools", response_model=ToolListResponse, tags=["tools"])
 async def list_tools():
-    """获取所有工具列表"""
-    logger.info("请求工具列表")
+    """"""
+    logger.info("Tool list requested")
 
     tools = tool_registry.list_tools()
 
-    # 分类统计
+    # statistics
     categories = {
-        "基础工具": 0,
-        "CPubMed核心工具": 0,
-        "CPubMed实用工具": 0,
-        "CPubMed关系工具": 0,
-        "MedicalBook工具": 0,
-        "SemanticScholar工具": 0
+        "Base": 0,
+        "CPubMed core": 0,
+        "CPubMed utilities": 0,
+        "CPubMed relation tools": 0,
+        "MedicalBook": 0,
+        "Semantic Scholar": 0
     }
 
     for tool_name in tools:
         if tool_name == "echo":
-            categories["基础工具"] += 1
+            categories["Base"] += 1
         elif tool_name in ["cpubmed.search", "cpubmed.get_relations"]:
-            categories["CPubMed核心工具"] += 1
+            categories["CPubMed core"] += 1
         elif tool_name in ["cpubmed.get_summary", "cpubmed.get_entity_type", "cpubmed.fuzzy_search"]:
-            categories["CPubMed实用工具"] += 1
+            categories["CPubMed utilities"] += 1
         elif tool_name.startswith("cpubmed.query_"):
-            categories["CPubMed关系工具"] += 1
+            categories["CPubMed relation tools"] += 1
         elif tool_name.startswith("medibook"):
-            categories["MedicalBook工具"] += 1
+            categories["MedicalBook"] += 1
         elif tool_name.startswith("semanticscholar"):
-            categories["SemanticScholar工具"] += 1
+            categories["Semantic Scholar"] += 1
 
-    logger.info(f"返回工具列表，共 {len(tools)} 个工具")
+    logger.info(f"Returning tool list with {len(tools)} tools")
     return ToolListResponse(
         total_tools=len(tools),
         categories=categories,
@@ -307,41 +307,40 @@ async def list_tools():
     )
 
 
-@app.get("/tools/{tool_name}", tags=["工具管理"])
+@app.get("/tools/{tool_name}", tags=["tools"])
 async def get_tool_schema(tool_name: str):
-    """获取工具的OpenAI Function Calling Schema"""
-    logger.info(f"请求工具Schema: {tool_name}")
+    """OpenAI Function Calling Schema"""
+    logger.info(f"Schema: {tool_name}")
 
     tool = tool_registry.get_tool(tool_name)
     if not tool:
-        logger.warning(f"工具不存在: {tool_name}")
-        raise HTTPException(status_code=404, detail=f"工具 '{tool_name}' 不存在")
+        logger.warning(f"does not exist: {tool_name}")
+        raise HTTPException(status_code=404, detail=f" '{tool_name}' does not exist")
 
     schema = tool.to_openai_schema()
-    logger.info(f"返回工具Schema: {tool_name}")
+    logger.info(f"Schema: {tool_name}")
     return schema
 
 
-@app.post("/tools/execute", response_model=ToolExecuteResponse, tags=["工具执行"])
+@app.post("/tools/execute", response_model=ToolExecuteResponse, tags=["tools"])
 async def execute_tool(request: ToolExecuteRequest):
-    """执行工具"""
-    logger.info(f"收到工具执行请求: {request.tool_name}")
+    """"""
+    logger.info(f"Executing tool: {request.tool_name}")
 
     response = await tool_registry.execute_tool_async(
         request.tool_name,
         request.parameters
     )
 
-    logger.info(f"工具执行响应: {request.tool_name}, 成功: {response.success}, 耗时: {response.execution_time:.3f}s")
+    logger.info(f"Tool executed: {request.tool_name}, success: {response.success}, time: {response.execution_time:.3f}s")
     return response
 
 
-@app.get("/relations", tags=["数据信息"])
+@app.get("/relations", tags=["relations"])
 async def get_relations():
-    """获取所有关系类型及中英文翻译对照"""
-    logger.info("请求关系类型列表")
+    """"""
+    logger.info("Relation information requested")
 
-    # 构建完整的关系信息
     relations_info = []
     for cn_name in RELATION_TYPES:
         en_name = RELATION_TRANSLATION[cn_name]
@@ -354,31 +353,31 @@ async def get_relations():
 
     return {
         "total": len(RELATION_TYPES),
-        "relations": RELATION_TYPES,  # 中文列表，保持向后兼容
-        "translation": RELATION_TRANSLATION,  # 完整翻译表
-        "details": relations_info  # 详细信息（包含工具名）
+        "relations": RELATION_TYPES,  #,
+        "translation": RELATION_TRANSLATION,  #
+        "details": relations_info  # ()
     }
 
 
-@app.get("/stats", tags=["系统"])
+@app.get("/stats", tags=["stats"])
 async def get_stats():
-    """获取服务器统计信息"""
-    logger.info("请求统计信息")
+    """statistics"""
+    logger.info("statistics")
 
     tools = tool_registry.list_tools()
     categories = {}
 
     for tool_name in tools:
-        category = "其他"
+        category = "Other"
         if tool_name == "echo":
-            category = "基础工具"
+            category = "Base"
         elif tool_name.startswith("cpubmed"):
             if tool_name in ["cpubmed.search", "cpubmed.get_relations"]:
-                category = "CPubMed核心"
+                category = "CPubMed"
             elif tool_name in ["cpubmed.get_summary", "cpubmed.get_entity_type", "cpubmed.fuzzy_search"]:
-                category = "CPubMed实用"
+                category = "CPubMed"
             elif tool_name.startswith("cpubmed.query_"):
-                category = "CPubMed关系"
+                category = "CPubMed"
         elif tool_name.startswith("medibook"):
             category = "MedicalBook"
         elif tool_name.startswith("semanticscholar"):
@@ -389,17 +388,17 @@ async def get_stats():
     return {
         "total_tools": len(tools),
         "categories": categories,
-        "uptime": "N/A",  # 可以添加运行时间统计
+        "uptime": "N/A",
         "timestamp": datetime.now().isoformat()
     }
 
 
-# ============= 主函数 =============
+# ============= Main =============
 if __name__ == "__main__":
     uvicorn.run(
         "tool_server:app",
-        host="YOUR_HOST",
+        host="127.0.0.1",
         port=8766,
         workers=1,
-        log_config=None  # 使用自定义日志配置
+        log_config=None
     )

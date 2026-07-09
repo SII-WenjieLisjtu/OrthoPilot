@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-infer_bone_async.py
--------------------------------------------------
-• 递归读取 JSON / JSONL 文件
-• 本地 (lmdeploy) 或 OpenAI-API 并发推理
-• tqdm 实时显示已推理 record 数
+Asynchronous inference utility for JSON and JSONL evaluation files.
 
-使用示例：
-    # 本地推理
-    python infer_bone_async.py
-
-    # OpenAI 并发推理
-    python infer_bone_async.py --openai
+The script can use a local lmdeploy backend, an OpenAI-compatible endpoint, or an
+Azure OpenAI deployment. Configure external API credentials through environment
+variables before use.
 """
 import argparse
 import json
 import asyncio
+import os
 import random
 from pathlib import Path
 from typing import Any, Optional, List, Tuple, Set
@@ -24,35 +18,35 @@ from typing import Any, Optional, List, Tuple, Set
 import torch
 from tqdm import tqdm
 
-# ───── 固定 OpenAI 配置 ─────
-OPENAI_API_KEY  = "YOUR_API_KEY"     # ← 改成你的 key
-OPENAI_BASE_URL = "http://YOUR_HOST:YOUR_PORT"            # ← 如无需自建代理可留空
-OPENAI_MODEL    = "gpt-4o"
-OPENAI_CONCURRENCY = 128   # 并发上限
+# ----- OpenAI-compatible endpoint -----
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "http://localhost:8000")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+OPENAI_CONCURRENCY = int(os.getenv("OPENAI_CONCURRENCY", "128"))
 
-# ───── Azure OpenAI 配置 ─────              
-AZURE_API_KEY        = "ecd405968a14b5d2be8b6c9484599c9f"
-AZURE_ENDPOINT       = "https://YOUR_LLM_API_BASE_URL"
-AZURE_API_VERSION    = "2025-04-01-preview"    
-Azure_MODEL          = "gpt-5"
+# ----- Azure OpenAI -----
+AZURE_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "")
+AZURE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://api.openai.com/v1")
+AZURE_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
+Azure_MODEL = os.getenv("AZURE_OPENAI_MODEL", "gpt-5")
 
-# ───── 本地推理 (lmdeploy) ─────
+# ----- lmdeploy -----
 from lmdeploy import (
     pipeline, ChatTemplateConfig, GenerationConfig, TurbomindEngineConfig
 )
 
-# ───── OpenAI 异步客户端 ─────
+# ----- OpenAI -----
 try:
     from openai import (
-        AsyncOpenAI,      
-        AsyncAzureOpenAI  
+        AsyncOpenAI,
+        AsyncAzureOpenAI
     )
     from openai import OpenAIError, InternalServerError
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
 
-# ---------- 1. 初始化本地模型 ----------
+# ---------- 1. model ----------
 def init_local_model(model_path: str, gpu_ids: Optional[List[int]] = None):
     if gpu_ids is None:
         gpu_ids = list(range(torch.cuda.device_count()))
@@ -93,22 +87,22 @@ async def _call_llm(
 
             except InternalServerError:
                 wait = (backoff_base ** attempt) + random.uniform(0, 0.3)
-                print(f"[LLM] 500 错误，重试 {attempt+1}/{retry}，等待 {wait:.1f}s")
+                print(f"[LLM] 500 error, {attempt+1}/{retry}, {wait:.1f}s")
                 await asyncio.sleep(wait)
 
             except OpenAIError as e:
-                # 返回错误字符串而不是抛异常，避免取消其它任务
-                return f"[ERROR] LLM API 错误: {e}"
+                # erroryes, task
+                return f"[ERROR] LLM API error: {e}"
 
             except Exception as e:
                 if attempt >= retry:
                     return f"[ERROR] {type(e).__name__}: {e}"
                 wait = (backoff_base ** attempt) + random.uniform(0, 0.3)
-                print(f"[LLM] 异常 {type(e).__name__}，重试 {attempt+1}/{retry}，等待 {wait:.1f}s")
+                print(f"[LLM] {type(e).__name__}, {attempt+1}/{retry}, {wait:.1f}s")
                 await asyncio.sleep(wait)
 
-        return "[ERROR] 超过最大重试次数，仍无法获取响应"
-    
+        return "[ERROR], "
+
 
 
 async def generate_with_openai_async(prompts: List[str]) -> List[str]:
@@ -143,7 +137,7 @@ async def generate_with_azure_async(prompts: List[str]) -> List[str]:
     return outs
 
 
-# ---------- 3. 统一生成接口 ----------
+# ---------- 3. generate ----------
 def generate_responses(
     engine: Any,
     prompts: List[str],
@@ -152,7 +146,7 @@ def generate_responses(
 ) -> List[str]:
     if mode == "openai":
         return asyncio.run(generate_with_openai_async(prompts))
-    if mode == "azure":           
+    if mode == "azure":
         return asyncio.run(generate_with_azure_async(prompts))
     # local
     outs = engine(prompts, gen_config=gen_cfg)
@@ -161,7 +155,7 @@ def generate_responses(
     return [o.text for o in outs]
 
 
-# ---------- 4. JSON 工具 ----------
+# ---------- 4. JSON ----------
 def get_last_user_prompt(obj: Any) -> Optional[str]:
     if isinstance(obj, list):
         for m in reversed(obj):
@@ -180,7 +174,7 @@ def append_assistant_reply(obj: dict, reply: str):
         {"role": "gpt-5", "content": reply}
     )
 
-# ---------- 5. Flush 批处理 ----------
+# ---------- 5. Flush ----------
 def flush_pool(
     pool: List[Tuple[Path, int, list, dict]],
     engine: Any,
@@ -206,12 +200,12 @@ def flush_pool(
         with out_fp.open("w", encoding="utf-8") as f:
             json.dump(records, f, ensure_ascii=False, indent=2)
 
-# ---------- 6. 主流程 ----------
+# ---------- 6. ----------
 def main():
     parser = argparse.ArgumentParser()
     grp = parser.add_mutually_exclusive_group()
-    grp.add_argument("--openai", action="store_true", help="使用 OpenAI 并发推理")
-    grp.add_argument("--azure",  action="store_true", help="使用 Azure OpenAI 并发推理")   # ✏️
+    grp.add_argument("--openai", action="store_true", help=" OpenAI ")
+    grp.add_argument("--azure",  action="store_true", help=" Azure OpenAI ")   #
     args = parser.parse_args()
 
     if args.openai:
@@ -221,12 +215,9 @@ def main():
     else:
         mode = "local"
 
-    # model_path = "/path/to/storage"
-    # model_path="/path/to/storage"
-    # model_path="/path/to/storage"
-    model_path="data_generate_0819/post_process/final_json_v2/test/task3.json data_generate_0819/post_process/final_json_v2/test/task4.json"
-    input_dir  = Path("data_generate_0819/post_process/final_json_v2/test/task3.json data_generate_0819/post_process/final_json_v2/test/task4.json")
-    output_dir = Path("/path/to/storage")
+    model_path = os.getenv("LOCAL_MODEL_PATH", "checkpoints/model")
+    input_dir = Path(os.getenv("INPUT_DIR", "data/examples"))
+    output_dir = Path(os.getenv("OUTPUT_DIR", "data/storage"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
     gpu_ids = [0, 1, 2, 3, 4, 5, 6, 7]
@@ -239,7 +230,7 @@ def main():
 
     pool: List[Tuple[Path, int, list, dict]] = []
     processed = 0
-    pbar = tqdm(total=0, unit="record", desc="已推理")
+    pbar = tqdm(total=0, unit="record", desc="")
 
     for fp in json_files:
         records_json = json.loads(fp.read_text(encoding="utf-8"))
@@ -260,8 +251,8 @@ def main():
         pbar.update(len(pool))
 
     pbar.close()
-    print(f"\n全部完成：共 {processed} 条记录已推理并保存至 {output_dir}\n")
+    print(f"\nall: {processed} save {output_dir}\n")
 
-# ---------- 7. 入口 ----------
+# ---------- 7. ----------
 if __name__ == "__main__":
     main()

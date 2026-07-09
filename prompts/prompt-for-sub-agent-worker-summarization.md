@@ -1,14 +1,14 @@
 # Prompt for Sub-Agent Worker Summarization
 
 **Source files**
-- `/path/to/orthopilot/MiroFlow/config/agent_prompts/sub_worker.py`
-- `/path/to/orthopilot/MiroFlow/src/core/orchestrator.py`
+- `prompts/prompt-for-sub-agent-worker-system.md`
+- `orthopilot_agent/miroflow_core/core/orchestrator.py`
 
 **Runtime note**
 - This prompt is used when the worker finishes its subtask or reaches a stopping condition.
 
 ## Rewritten prompt
-This is the worker’s final reporting stage. Tool calls are forbidden.
+This is the worker's final reporting stage. Tool calls are forbidden.
 
 Write a complete summary of the subtask outcome. If the worker failed to finish because of a limit or error, state that explicitly. If a clear answer has already been established, preserve it rather than re-deriving it. If the result remains partial, include the best-supported answer available together with the remaining gaps.
 

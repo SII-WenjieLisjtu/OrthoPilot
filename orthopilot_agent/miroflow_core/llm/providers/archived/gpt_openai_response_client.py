@@ -11,9 +11,9 @@ from omegaconf import DictConfig
 from openai import AsyncOpenAI, OpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from src.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
@@ -47,17 +47,17 @@ class GPTOpenAIResponseClient(LLMProviderClientBase):
         keep_tool_result: int = -1,
     ):
         """
-        Send message to OpenAI Response API.
-        :param system_prompt: System prompt string.
-        :param messages: Message history list.
-        :return: OpenAI API response object or None (if error).
-        """
+ Send message to OpenAI Response API.
+:param system_prompt: System prompt string.
+:param messages: Message history list.
+:return: OpenAI API response object or None (if error).
+ """
         logger.debug(
             f" Calling LLM Response API ({'async' if self.async_client else 'sync'})"
         )
 
         # Build Response API input format
-        # Response API uses different input format, need to convert messages to text
+        # Response API uses different input format, need to convert messages to
         conversation_text = self._convert_messages_to_text(system_prompt, messages)
         tool_list = await self.convert_tool_definition_to_tool_call(tools_definitions)
 
@@ -110,7 +110,7 @@ class GPTOpenAIResponseClient(LLMProviderClientBase):
     def _convert_messages_to_text(
         self, system_prompt: str, messages: List[Dict[str, Any]]
     ) -> str:
-        """Convert message list to text format required by Response API"""
+        """Convert message list to format required by Response API"""
         conversation_parts = []
 
         # Add system prompt
@@ -232,7 +232,7 @@ class GPTOpenAIResponseClient(LLMProviderClientBase):
 
     def extract_tool_calls_info(self, llm_response, assistant_response_text):
         """Extract tool call information from OpenAI Response API LLM response"""
-        from src.utils.parsing_utils import parse_llm_response_for_tool_calls
+        from orthopilot_agent.miroflow_core.utils.parsing_utils import parse_llm_response_for_tool_calls
 
         return parse_llm_response_for_tool_calls(llm_response)
 

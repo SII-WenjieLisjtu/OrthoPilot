@@ -12,7 +12,7 @@ from google import genai
 from google.genai import types
 import requests
 import asyncio
-from src.logging.logger import setup_mcp_logging
+from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
 
 # Anthropic credentials
@@ -20,13 +20,13 @@ ENABLE_CLAUDE_VISION = os.environ.get("ENABLE_CLAUDE_VISION", "false").lower() =
 ENABLE_OPENAI_VISION = os.environ.get("ENABLE_OPENAI_VISION", "false").lower() == "true"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://YOUR_ANTHROPIC_BASE_URL")
+ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 ANTHROPIC_MODEL_NAME = os.environ.get(
     "ANTHROPIC_MODEL_NAME", "claude-3-7-sonnet-20250219"
 )
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENAI_MODEL_NAME = os.environ.get("OPENAI_MODEL_NAME", "gpt-4o")
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -129,9 +129,9 @@ async def call_claude_vision(image_path_or_url: str, question: str) -> str:
                 )
                 result = response.content[0].text
 
-                # Check if response.text is None or empty after stripping
-                if result is None or result.strip() == "":
-                    raise Exception("Response text is None or empty")
+                # Check if response. is None or empty after stripping
+                if result is None or not result.strip():
+                    raise Exception("Response is None or empty")
 
                 break  # Success, exit retry loop
             except Exception as e:
@@ -249,9 +249,9 @@ async def call_gemini_vision(image_path_or_url: str, question: str) -> str:
                 # config=types.GenerateContentConfig(temperature=0.1),
             )
 
-            # Check if response.text is None or empty after stripping
-            if response.text is None or response.text.strip() == "":
-                raise Exception("Response text is None or empty")
+            # Check if response. is None or empty after stripping
+            if response.text is None or not response.text.strip():
+                raise Exception("Response is None or empty")
 
             return response.text
 
@@ -261,7 +261,7 @@ async def call_gemini_vision(image_path_or_url: str, question: str) -> str:
                 "503" in str(e)
                 or "429" in str(e)
                 or "500" in str(e)
-                or "Response text is None or empty" in str(e)
+                or "Response is None or empty" in str(e)
             ):
                 retry_count += 1
                 if retry_count > max_retry:
@@ -285,29 +285,29 @@ async def call_gemini_vision(image_path_or_url: str, question: str) -> str:
 
 @mcp.tool()
 async def visual_question_answering(image_path_or_url: str, question: str) -> str:
-    """This tool is used to ask question about an image or a video and get the answer with Gemini vision language models. It also automatically performs OCR (text extraction) on the image for additional context.
+    """This tool is used to ask question about an image or a video and get the answer with Gemini vision language models. It also automatically performs OCR (extraction) on the image for additional con.
 
-    Args:
-        image_path_or_url: The image file’s local path or its URL. Files from sandbox are not supported.
-        question: The question to ask about the image. This tool performs bad on reasoning-required questions.
+ Args:
+ image_path_or_url: The image file's local path or its URL. Files from sandbox are not supported.
+ question: The question to ask about the image. This tool performs bad on reasoning-required questions.
 
-    Returns:
-        The concatenated answers from Gemini vision model, including both VQA responses and OCR results.
-    """
+ Returns:
+ The concatenated answers from Gemini vision model, including both VQA responses and OCR results.
+ """
 
-    ocr_prompt = """You are a meticulous text extraction specialist. Your task is to carefully scan the entire image and extract ALL visible text with maximum accuracy.
+    ocr_prompt = """You are a meticulous extraction specialist. Your task is to carefully scan the entire image and extract ALL visible with maximum accuracy.
 
 IMPORTANT INSTRUCTIONS:
 1. **Scan systematically** - Look at every corner, edge, and area of the image multiple times
-2. **Extract ALL text** - Include headers, labels, captions, fine print, watermarks, signs, and any other text elements
-3. **Preserve formatting** - Maintain line breaks, spacing, and text hierarchy as they appear
+2. **Extract ALL ** - Include headers, labels, captions, fine print, watermarks, signs, and any other elements
+3. **Preserve formatting** - Maintain line breaks, spacing, and hierarchy as they appear
 4. **Include numbers and symbols** - Extract all numerical values, symbols, and special characters
 5. **Double-check your work** - Review the entire image again to ensure nothing was missed
-6. **Describe any unclear, partially visible, or ambiguous text** - If any text is blurry, cut off, partly obscured, or otherwise difficult to read, **describe it as best as possible, even if you are unsure or cannot fully recognize it**.
+6. **Describe any unclear, partially visible, or ambiguous ** - If any is blurry, cut off, partly obscured, or otherwise difficult to read, **describe it as best as possible, even if you are unsure or cannot fully recognize it**.
 
 Remember: Your extraction will be used by someone who cannot see the image themselves. Any possible guess, uncertainty, or ambiguity should be reported in words rather than left out, so that nothing is omitted or lost.
 
-Return only the extracted text content, maintaining the original formatting and structure as much as possible. If there is no text in the image, respond with 'No text found'. If there are areas where text may exist but is unreadable or ambiguous, describe these as well."""
+Return only the extracted content, maintaining the original formatting and structure as much as possible. If there is no in the image, respond with 'No found'. If there are areas where may exist but is unreadable or ambiguous, describe these as well."""
 
     if ANTHROPIC_API_KEY:
         ocr_result = await call_claude_vision(image_path_or_url, ocr_prompt)
@@ -321,8 +321,8 @@ Return only the extracted text content, maintaining the original formatting and 
     vqa_prompt = f"""You are a highly attentive visual analysis assistant. Your task is to carefully examine the image and provide a thorough, accurate answer to the question.
 
 IMPORTANT INSTRUCTIONS:
-1. **Look at the image multiple times** - Take your time to observe all details, objects, people, text, colors, spatial relationships, and any subtle elements
-2. **Cross-reference with OCR data** - Carefully compare what you see visually with the extracted text to ensure consistency
+1. **Look at the image multiple times** - Take your time to observe all details, objects, people,, colors, spatial relationships, and any subtle elements
+2. **Cross-reference with OCR data** - Carefully compare what you see visually with the extracted to ensure consistency
 3. **Think step-by-step** - Break down your analysis into logical steps before providing your final answer, especially for complex and multi-object recognition questions
 4. **Consider multiple perspectives** - Look at the image from different angles and consider various interpretations, especially for multi-object recognition questions
 5. **Double-check your observations** - Verify your initial impressions by looking again at specific areas, especially for complex and multi-object recognition questions
@@ -331,14 +331,14 @@ IMPORTANT INSTRUCTIONS:
 
 Remember: Your analysis will be used by someone who cannot see the image themselves. Any possible guess, uncertainty, or ambiguity should be reported in words rather than left out, so that nothing is omitted or lost.
 
-The OCR result of this image is as follows (may be incomplete or missing some text):
+The OCR result of this image is as follows (may be incomplete or missing some ):
 {ocr_result}
 
 Question to answer: {question}
 
 Please provide a comprehensive analysis that demonstrates careful observation and thoughtful reasoning, including any possible, uncertain, or ambiguous elements you notice.
 """
-    # Before answering, carefully analyze both the question and the image. Identify and briefly list potential subtle or easily overlooked VQA pitfalls or ambiguities that could arise in interpreting this question or image (e.g., confusing similar objects, missing small details, misreading text, ambiguous context, etc.). For each, suggest a method or strategy to avoid or mitigate these issues. Only after this analysis, proceed to answer the question, providing a thorough and detailed observation and reasoning process.
+    # Before answering, carefully analyze both the question and the image. Identify and briefly list potential subtle or easily overlooked VQA pitfalls or ambiguities that could arise in interpreting this question or image (e.g., confusing similar objects, missing small details, misreading, ambiguous con, etc.). For each, suggest a method or strategy to avoid or mitigate these issues. Only after this analysis, proceed to answer the question, providing a thorough and detailed observation and reasoning process.
 
     if ANTHROPIC_API_KEY:
         vqa_result = await call_claude_vision(image_path_or_url, vqa_prompt)
@@ -359,15 +359,15 @@ async def visual_audio_youtube_analyzing(
 ) -> str:
     """Analyzes public YouTube video audiovisual content to answer questions or provide transcriptions. This tool processes both audio tracks and visual frames from YouTube videos. This tool could be primarily used when analyzing YouTube video content. Only supports YouTube Video URLs containing youtube.com/watch, youtube.com/shorts, or youtube.com/live for now.
 
-    Args:
-        url: The YouTube video URL.
-        question: The specific question about the video content. Use timestamp format MM:SS or MM:SS-MM:SS if needed to specify a specific time (e.g., 01:45, 03:20-03:45). Leave empty if only requesting transcription.
-        provide_transcribe: When set to true, returns a complete timestamped transcription of both spoken content and visual elements throughout the video.
+ Args:
+ url: The YouTube video URL.
+ question: The specific question about the video content. Use timestamp format MM:SS or MM:SS-MM:SS if needed to specify a specific time (e.g., 01:45, 03:20-03:45). Leave empty if only requesting transcription.
+ provide_transcribe: When set to true, returns a complete timestamped transcription of both spoken content and visual elements throughout the video.
 
-    Returns:
-        The answer to the question or the transcription of the video.
-    """
-    if GEMINI_API_KEY == "":
+ Returns:
+ The answer to the question or the transcription of the video.
+ """
+    if not GEMINI_API_KEY:
         return "[ERROR]: GEMINI_API_KEY is not set, visual_audio_youtube_analyzing tool is not available."
 
     if (
@@ -377,7 +377,7 @@ async def visual_audio_youtube_analyzing(
     ):
         return f"[ERROR]: Invalid URL: '{url}'. YouTube Video URL must contain youtube.com/watch, youtube.com/shorts, or youtube.com/live"
 
-    if question == "" and not provide_transcribe:
+    if not question and not provide_transcribe:
         return "[ERROR]: You must provide a question to ask about the video content or set provide_transcribe to True."
 
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -398,12 +398,12 @@ async def visual_audio_youtube_analyzing(
                     ),
                 )
 
-                # Check if response.text is None or empty after stripping
+                # Check if response. is None or empty after stripping
                 if (
                     transcribe_response.text is None
-                    or transcribe_response.text.strip() == ""
+                    or not transcribe_response.text.strip()
                 ):
-                    raise Exception("Response text is None or empty")
+                    raise Exception("Response is None or empty")
 
                 transcribe_content = (
                     "Transcription:\n" + transcribe_response.text + "\n\n"
@@ -420,7 +420,7 @@ async def visual_audio_youtube_analyzing(
                     or "503" in str(e)
                     or "429" in str(e)
                     or "500" in str(e)
-                    or "Response text is None or empty" in str(e)
+                    or "Response is None or empty" in str(e)
                 ):
                     retry_count += 1
                     if retry_count > max_retry:
@@ -464,9 +464,9 @@ async def visual_audio_youtube_analyzing(
                     ),
                 )
 
-                # Check if response.text is None or empty after stripping
-                if response.text is None or response.text.strip() == "":
-                    raise Exception("Response text is None or empty")
+                # Check if response. is None or empty after stripping
+                if response.text is None or not response.text.strip():
+                    raise Exception("Response is None or empty")
 
                 answer_content = (
                     "Answer of the question: "
@@ -487,7 +487,7 @@ async def visual_audio_youtube_analyzing(
                     or "503" in str(e)
                     or "429" in str(e)
                     or "500" in str(e)
-                    or "Response text is None or empty" in str(e)
+                    or "Response is None or empty" in str(e)
                 ):
                     retry_count += 1
                     if retry_count > max_retry:

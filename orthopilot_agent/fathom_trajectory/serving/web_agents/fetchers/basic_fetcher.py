@@ -14,7 +14,7 @@ def _looks_like_error(txt):
         for err in _ERROR:
             if err in txt:
                 return True
-    return False 
+    return False
 
 
 def fetch_html(url: str) -> str:

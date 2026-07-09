@@ -5,7 +5,7 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# 若第一次运行需要下载分词模型
+# model
 nltk.download('punkt')
 
 def compute_rouge_l(reference, hypothesis):
@@ -30,15 +30,15 @@ def compute_all_metrics(reference, hypothesis):
     bleu = compute_bleu(reference, hypothesis)
     cosine = compute_cosine_similarity(reference, hypothesis)
 
-    print("📐 文本相似度指标：")
-    print(f"🔴 ROUGE-L F1:     {rouge_l:.4f}")
-    print(f"🔵 BLEU Score:     {bleu:.4f}")
-    print(f"🟢 Cosine Similarity: {cosine:.4f}")
+    print(": ")
+    print(f" ROUGE-L F1: {rouge_l:.4f}")
+    print(f" BLEU Score: {bleu:.4f}")
+    print(f" Cosine Similarity: {cosine:.4f}")
 
-# 示例用法
+#
 if __name__ == "__main__":
-    reference = "患者左髋关节退行性改变，建议进一步检查。"
-    hypothesis = "建议对患者左髋退变进行进一步的影像学评估。"
+    reference = "patient,."
+    hypothesis = "patient."
 
     compute_all_metrics(reference, hypothesis)
 

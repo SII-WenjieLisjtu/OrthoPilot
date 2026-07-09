@@ -7,7 +7,7 @@ import re
 
 import json5
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 import os
 
@@ -17,9 +17,9 @@ logger = bootstrap_logger(level=LOGGER_LEVEL)
 
 def _smart_json_truncate(json_str):
     """
-    Intelligently truncate a JSON string at the end of the first complete structure, removing any possible extra characters.
-    Supports top-level structures starting with { or [; does not count braces inside strings.
-    """
+ Intelligently truncate a JSON string at the end of the first complete structure, removing any possible extra characters.
+ Supports top-level structures starting with { or [; does not count braces inside strings.
+ """
     if not json_str:
         return json_str
 
@@ -67,13 +67,13 @@ def _smart_json_truncate(json_str):
 
 def _fix_unterminated_string_values(json_str):
     """
-    General fix: minimally repair when some string values are missing a closing double quote.
-    Only when a pattern like "key": "<value... is detected and there is no unescaped '"' until the end of input,
-    add a '"' just before the top-level closing brace/bracket.
-    Does not depend on specific key names, tries to be conservative to avoid incorrect changes.
-    """
+ General fix: minimally repair when some string values are missing a closing double quote.
+ Only when a pattern like "key": "<value... is detected and there is no unescaped '"' until the end of input,
+ add a '"' just before the top-level closing brace/bracket.
+ Does not depend on specific key names, tries to be conservative to avoid incorrect changes.
+ """
     try:
-        # Regex to match patterns like "key" : " (key supports escape characters)
+        # Regex to match patterns like "key": " (key supports escape characters)
         pattern = re.compile(r'"(?:[^"\\]|\\.)*"\s*:\s*"', re.DOTALL)
         for m in pattern.finditer(json_str):
             value_start = m.end()
@@ -102,7 +102,7 @@ def _fix_unterminated_string_values(json_str):
                     if j >= len(json_str) or json_str[j] in (",", "}", "]"):
                         closed = True
                         break
-                    # If followed by non-JSON text, this might be an embedded quote, continue searching
+                    # If followed by non-JSON, this might be an embedded quote, continue searching
                 i += 1
 
             if not closed:
@@ -161,18 +161,18 @@ def _fix_unterminated_string_values(json_str):
 
 def preprocess_json_string(json_str):
     """
-    Preprocess JSON string to fix common issues before parsing.
+ Preprocess JSON string to fix common issues before parsing.
 
-    Applies universal fixes that help with LLM-generated JSON:
-    1. Fix unterminated string values (to make JSON structure complete)
-    2. Smart truncation to remove extra content after valid JSON
+ Applies universal fixes that help with LLM-generated JSON:
+ 1. Fix unterminated string values (to make JSON structure complete)
+ 2. Smart truncation to remove extra content after valid JSON
 
-    Args:
-        json_str (str): The raw JSON string to preprocess
+ Args:
+ json_str (str): The raw JSON string to preprocess
 
-    Returns:
-        str: The preprocessed JSON string
-    """
+ Returns:
+ str: The preprocessed JSON string
+ """
     if not json_str or not isinstance(json_str, str):
         return json_str
 
@@ -187,18 +187,18 @@ def preprocess_json_string(json_str):
 
 def robust_json_loads(json_str, apply_preprocessing=True):
     """
-    Robust JSON parsing function with optional preprocessing.
+ Robust JSON parsing function with optional preprocessing.
 
-    First applies preprocessing to fix common LLM JSON issues, then tries
-    standard json, fallback to json5 if that fails.
-    Args:
-        json_str (str): The JSON string to parse
-        apply_preprocessing (bool): Whether to apply preprocessing fixes. Default True.
-    Returns:
-        dict: The parsed JSON object
-    Raises:
-        json.JSONDecodeError: If all parsing attempts fail
-    """
+ First applies preprocessing to fix common LLM JSON issues, then tries
+ standard json, fallback to json5 if that fails.
+ Args:
+ json_str (str): The JSON string to parse
+ apply_preprocessing (bool): Whether to apply preprocessing fixes. Default True.
+ Returns:
+ dict: The parsed JSON object
+ Raises:
+ json.JSONDecodeError: If all parsing attempts fail
+ """
     # Apply preprocessing by default to fix common issues
     if apply_preprocessing:
         json_str = preprocess_json_string(json_str)
@@ -222,22 +222,22 @@ def robust_json_loads(json_str, apply_preprocessing=True):
 
 def escape_string_content(content, key_name=None):
     """
-    Smart escaping and fixing: different processing based on key type
+ Smart escaping and fixing: different processing based on key type
 
-    Escaping strategy:
-    - Basic escaping: double quotes, newlines and other JSON-required escaping
-    - Smart fixing: fix common syntax errors based on key type
-      * code_block: null→None, true→True, false→False
-      * command: True→true, False→false, None→""
-      * others: None→null, True→true, False→false
+ Escaping strategy:
+ - Basic escaping: double quotes, newlines and other JSON-required escaping
+ - Smart fixing: fix common syntax errors based on key type
+ * code_block: null->None, true->True, false->False
+ * command: True->true, False->false, None->""
+ * others: None->null, True->true, False->false
 
-    Args:
-        content (str): The string content to escape
-        key_name (str): The key name, used to determine fixing strategy
+ Args:
+ content (str): The string content to escape
+ key_name (str): The key name, used to determine fixing strategy
 
-    Returns:
-        str: The escaped and fixed string
-    """
+ Returns:
+ str: The escaped and fixed string
+ """
     # Strategy 1: Basic escaping (needed for all fields)
     result = []
     i = 0
@@ -292,15 +292,15 @@ def fix_python_syntax(content):
     import re
 
     # Keywords that need to be kept in Python
-    # null → None (but be careful not to change null inside strings)
+    # null -> None (but be careful not to change null inside strings)
     content = re.sub(r"\bnull\b", "None", content)
-    # true → True
+    # true -> True
     content = re.sub(r"\btrue\b", "True", content)
-    # false → False
+    # false -> False
     content = re.sub(r"\bfalse\b", "False", content)
 
     # Fix common Python syntax errors
-    # e.g.: print "text" → print("text") (Python 2 to 3)
+    # e.g.: print "" -> print("") (Python 2 to 3)
     content = re.sub(r'\bprint\s+"([^"]*)"', r'print("\1")', content)
 
     return content
@@ -329,7 +329,7 @@ def fix_json_syntax(content):
     import re
 
     # JSON standard keyword fixes
-    # Python keywords → JSON keywords
+    # Python keywords -> JSON keywords
     content = re.sub(r"\bNone\b", "null", content)
     content = re.sub(r"\bTrue\b", "true", content)
     content = re.sub(r"\bFalse\b", "false", content)
@@ -339,24 +339,24 @@ def fix_json_syntax(content):
 
 def parse_escaped_json_string(raw_str):
     """
-    Fix escape issues in JSON strings, supports smart syntax fixing
+ Fix escape issues in JSON strings, supports smart syntax fixing
 
-    Uses 5 progressive parsing strategies:
-    1. Direct parsing - return directly if already valid JSON
-    2. Line start pattern - use simple line start key pattern for parsing
-    3. Negative lookbehind pattern - use complex negative lookbehind to exclude escaped keys
-    4. Legacy method - use historically compatible simple string replacement
-    5. Conservative fallback - most basic escape fixing
+ Uses 5 progressive parsing strategies:
+ 1. Direct parsing - return directly if already valid JSON
+ 2. Line start pattern - use simple line start key pattern for parsing
+ 3. Negative lookbehind pattern - use complex negative lookbehind to exclude escaped keys
+ 4. Legacy method - use historically compatible simple string replacement
+ 5. Conservative fallback - most basic escape fixing
 
-    Args:
-        raw_str (str): JSON string that may contain escape issues
+ Args:
+ raw_str (str): JSON string that may contain escape issues
 
-    Returns:
-        str: Fixed valid JSON string
+ Returns:
+ str: Fixed valid JSON string
 
-    Raises:
-        json.JSONDecodeError: If all strategies fail to fix into valid JSON
-    """
+ Raises:
+ json.JSONDecodeError: If all strategies fail to fix into valid JSON
+ """
     raw_str = raw_str.strip()
 
     # Strategy 1: Direct parsing verification
@@ -490,7 +490,7 @@ def _find_value_end_position(raw_str, start_pos, search_limit):
             if (
                 after_quote.startswith(",")
                 or after_quote.startswith("}")
-                or after_quote == ""
+                or not after_quote
             ):
                 return pos
     return None
@@ -498,8 +498,8 @@ def _find_value_end_position(raw_str, start_pos, search_limit):
 
 def _legacy_escape_method(raw_str):
     """
-    Legacy simple escape method: mainly handles special cases of code_block field
-    """
+ Legacy simple escape method: mainly handles special cases of code_block field
+ """
     # Remove leading and trailing whitespace
     raw_str = raw_str.strip()
 
@@ -550,7 +550,7 @@ def _escape_for_json(value: str) -> str:
     # Do not escape \" and \uXXXX
     fixed = re.sub(r'(?<!\\)\\(?!["]|u[0-9a-fA-F]{4})', r"\\\\", value)
 
-    # Then escape newlines, order is important: \r\n → \n → \r
+    # Then escape newlines, order is important: \r\n -> \n -> \r
     fixed = fixed.replace("\r\n", "\\r\\n").replace("\n", "\\n").replace("\r", "\\r")
 
     return fixed
@@ -558,8 +558,8 @@ def _escape_for_json(value: str) -> str:
 
 def _conservative_escape_fallback(raw_str):
     """
-    Conservative fallback strategy: only fix the most obvious issues
-    """
+ Conservative fallback strategy: only fix the most obvious issues
+ """
     import re
 
     # Only handle the most common issue: newlines in string values
@@ -583,11 +583,11 @@ def _conservative_escape_fallback(raw_str):
 
 def parse_llm_response_for_tool_calls(llm_response_content_text):
     """
-    Parse tool_calls or <use_mcp_tool> tags from LLM response text.
-    Returns a list containing tool call information.
-    """
+ Parse tool_calls or <use_mcp_tool> tags from LLM response.
+ Returns a list containing tool call information.
+ """
     # tool_calls or MCP reponse are handled differently
-    # for openai response api, the tool_calls are in the response text
+    # for openai response api, the tool_calls are in the response
     if isinstance(llm_response_content_text, dict):
         tool_calls = []
         bad_tool_calls = []
@@ -633,7 +633,7 @@ def parse_llm_response_for_tool_calls(llm_response_content_text):
                 )
         return tool_calls, bad_tool_calls
 
-    # for openai completion api, the tool_calls are in the response text
+    # for openai completion api, the tool_calls are in the response
     if isinstance(llm_response_content_text, list):
         tool_calls = []
         bad_tool_calls = []
@@ -803,7 +803,7 @@ def parse_llm_response_for_tool_calls(llm_response_content_text):
 
 
 def main():
-    sample = "<use_mcp_tool><server_name>demo</server_name><tool_name>echo</tool_name><arguments>{\"text\": \"hello\"}</arguments></use_mcp_tool>"
+    sample = "<use_mcp_tool><server_name>demo</server_name><tool_name>echo</tool_name><arguments>{\"\": \"hello\"}</arguments></use_mcp_tool>"
     tool_calls, bad_tool_calls = parse_llm_response_for_tool_calls(sample)
     print(f"Parse result: {len(tool_calls)} tool calls, {len(bad_tool_calls)} errors")
 

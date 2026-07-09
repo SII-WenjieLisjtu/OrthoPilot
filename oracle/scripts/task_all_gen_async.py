@@ -15,18 +15,130 @@ from dataclasses import dataclass
 from typing import Tuple, List, Dict, Any, Optional, Set
 from pathlib import Path
 
-from utils import *  # get_llm_response, get_llm_response_local, get_meta_path_by_str, save_dict, make_uid, get_last_human, get_last_model_output, compute_all_metrics
 from tqdm import tqdm
 import httpx
 import pandas as pd
 
+
+def _parse_llm_output(content: str, as_dict: bool = True):
+    if not as_dict:
+        return content, ""
+    text = (content or "").strip()
+    try:
+        return json.loads(text), ""
+    except Exception:
+        match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
+        if match:
+            try:
+                return json.loads(match.group(1).strip()), ""
+            except Exception:
+                pass
+        match = re.search(r"(\{.*\})", text, flags=re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1)), ""
+            except Exception:
+                pass
+    return {"error": "failed to parse JSON response", "raw": text}, ""
+
+
+def get_llm_response(client, model: str, prompt: str, max_retries: int = 5, as_dict: bool = True):
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+            )
+            content = resp.choices[0].message.content or ""
+            return _parse_llm_output(content, as_dict=as_dict)
+        except Exception as exc:
+            last_err = exc
+            if attempt < max_retries:
+                time.sleep(min(2 ** (attempt - 1), 30))
+    raise last_err if last_err else RuntimeError("LLM request failed")
+
+
+def get_llm_response_local(client, model: str, prompt: str, max_retries: int = 5, as_dict: bool = True, timeout: int = 600):
+    payload = {
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0,
+        "stream": False,
+    }
+    if model:
+        payload["model"] = model
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = client.post("chat/completions", json=payload, timeout=timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"].get("content") or ""
+            return _parse_llm_output(content, as_dict=as_dict)
+        except Exception as exc:
+            last_err = exc
+            if attempt < max_retries:
+                time.sleep(min(2 ** (attempt - 1), 30))
+    raise last_err if last_err else RuntimeError("Local LLM request failed")
+
+
+def _safe_patient_id(patient_id: str) -> str:
+    return str(patient_id or "unknown").strip().replace("/", "_").replace("\\", "_")
+
+
+def get_meta_path_by_str(meta_root: str, task_id: int, patient_id: str, subpath: str) -> str:
+    return os.path.join(meta_root, f"task_{task_id}", subpath, f"{_safe_patient_id(patient_id)}.json")
+
+
+def save_dict(meta: dict, save_path: str) -> str:
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    return save_path
+
+
+def make_uid(patient_id: str, input_text: str) -> str:
+    raw = f"{patient_id or ''}||{(input_text or '').strip()}"
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()
+
+
+def get_last_human(conversations: List[dict]) -> str:
+    last = ""
+    for msg in conversations or []:
+        role = msg.get("from", msg.get("role", ""))
+        if role in {"human", "user"}:
+            last = msg.get("value", msg.get("content", "")) or ""
+    return last
+
+
+def get_last_model_output(conversations: List[dict]) -> str:
+    last = ""
+    for msg in conversations or []:
+        role = msg.get("from", msg.get("role", ""))
+        if role not in {"human", "user", "system"}:
+            last = msg.get("value", msg.get("content", "")) or ""
+    return last
+
+
+def compute_all_metrics(references: List[str], hypotheses: List[str]):
+    def _ratio(a: str, b: str) -> float:
+        if not a or not b:
+            return 0.0
+        return SequenceMatcher(None, str(a), str(b)).ratio()
+
+    from difflib import SequenceMatcher
+    scores = [_ratio(r, h) for r, h in zip(references, hypotheses)]
+    zeros = [0.0 for _ in scores]
+    return scores, scores, zeros, zeros, zeros, scores, zeros
+
 # =========================
-# 基本路径配置（按需修改）
+# Default public-release paths
 # =========================
-DATA_ROOT = "test_final/test_subset"  # taskX.json 所在目录
+DATA_ROOT = "test_final/test_subset"  # taskX.json
 META_ROOT = "./meta/subset"
 
-DEFAULT_INFER_ROOT = "/path/to/orthopilot/gen_validation/result"
+DEFAULT_INFER_ROOT = "outputs"
 DEFAULT_INFER_MODEL_TAG = "qwen3-235b-a22b-instruct-2507"
 
 API_BACKEND = "local"
@@ -34,7 +146,7 @@ API_BACKEND = "local"
 INFER_ALL_SENTINELS = {"all", "*", "__all__"}
 
 # =========================
-# 正则：只提取 patient_ 后的 ID
+# Extract patient IDs from item identifiers
 # =========================
 PID_PAT = re.compile(r"patient_([^_]+)", re.IGNORECASE)
 
@@ -49,9 +161,7 @@ def ensure_dir(p: str):
 
 
 def append_rows_csv(csv_path: str, fieldnames: List[str], rows: List[Dict[str, Any]]):
-    """
-    追加写 CSV；若文件不存在则写表头。
-    """
+    """Append rows to a CSV file and create the header when the file is new."""
     ensure_dir(os.path.dirname(csv_path))
     file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
 
@@ -72,7 +182,7 @@ def append_rows_csv(csv_path: str, fieldnames: List[str], rows: List[Dict[str, A
 
 
 # =========================
-# 读取任务 JSON：返回 gt, inp, pids
+# task JSON: gt, inp, pids
 # =========================
 def load_data(file_path: str) -> Tuple[List[str], List[str], List[str]]:
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -105,43 +215,49 @@ def load_data(file_path: str) -> Tuple[List[str], List[str], List[str]]:
 
 
 # =========================
-# 文本提示构造
+# Prompt builders
 # =========================
 def format_generation_prompt(gt: str) -> str:
-    return f"{task}内容为：{gt}；要点为：{concerns}；格式要求为{criteria_format}"
+    return (
+        f"Task: {task}\n\n"
+        f"Reference content:\n{gt}\n\n"
+        f"Evaluation concerns:\n{concerns}\n\n"
+        f"Generate a scoring rubric in this required format:\n{criteria_format}"
+    )
 
 
 def format_judge_prompt(inf: str, criteria: str) -> str:
     return (
-        f"现有学生给出的{task}任务的回答为：\n{inf}\n\n"
-        f"评分标准如下：\n{criteria}；\n\n"
-        f"格式示例，注意这里只是**格式示例**为,需要根据评分标准具体内容进行匹配判断：\n{grading_format}\n"
-        f"请你根据**评分标准**中的应该包括的内容对学生的回答进行评判，对于存在的时间可以忽略，可以忽略一些过于细节非患者信息能够得到的细节（例如设备具体名称，具体时间点）"
-        f"注意是对学生的回答进行提取，对于空的评分标准进行跳过，如果大致提到就为真，没提到就为假"
+        f"Model output for task {task}:\n{inf}\n\n"
+        f"Scoring rubric:\n{criteria}\n\n"
+        "Evaluate whether each rubric item is covered by the model output. "
+        "Return only valid JSON in the required judgement schema:\n"
+        f"{grading_format}\n\n"
+        "Judge only from the model output and the rubric. Do not use external patient information."
     )
 
 
 def _keep_only_content_field(x: Any) -> Any:
     """
-    将 criteria 中的条目从
-      {"内容": "...", "分类理由": "..."}  ->  "..."
-    其余情况尽量保持结构。
-    """
+ criteria
+ {"content": "...", "classification_reason": "..."} -> "..."
+.
+ """
     if x is None:
         return x
     if isinstance(x, list):
         return [_keep_only_content_field(v) for v in x]
     if isinstance(x, dict):
-        if "内容" in x:
-            return x.get("内容", "")
+        if "content" in x:
+            return x.get("content", "")
         return {k: _keep_only_content_field(v) for k, v in x.items()}
     return x
 
 
 def strip_criteria_reasoning(criteria_dict: Dict[str, Any]) -> Dict[str, Any]:
     """
-    只保留 category -> level -> [内容,...] 结构（去掉 分类理由 等解释字段）
-    """
+ category -> level -> [content,...] (classification_reason)
+ """
     if not isinstance(criteria_dict, dict):
         return {}
 
@@ -168,10 +284,7 @@ def strip_criteria_reasoning(criteria_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def prune_criteria_for_judge(c: Any, gradings: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    从 meta 里读到的 criteria 记录通常包含 gt/input/thinking 等冗余字段。
-    judge 时只需要评分关注点本体（即 gradings.keys() 对应的 category）。
-    """
+    """Keep only judge-facing criteria and drop case metadata fields."""
     if not isinstance(c, dict):
         return {}
 
@@ -187,10 +300,10 @@ def prune_criteria_for_judge(c: Any, gradings: Dict[str, Any]) -> Dict[str, Any]
 
 def recall_prompt(inf: str, gt: str) -> str:
     return (
-        f"现有学生给出的{task}任务答案内容为：{inf}; 正确答案为：{gt}；现在你需要提取学生答案中与正确答案重复的基础医学术语，"
-        f"如：护理、普食、抗生素等，要求术语都是最小单位。为了使得学生答案和正确答案对齐，你可以进行微小的近义词修改和进一步分词，"
-        f"避免类似“护理”和“护理级别”这样的不匹配。不允许包含具体的检查项目，药物名称等。"
-        f"请以列表形式返回，且必须是合法的json格式。例如：{{\"student\": [\"xxx\", \"xxx\"], \"answer\": [\"xxx\", \"xxx\"]}}"
+        f"Model answer for task {task}:\n{inf}\n\n"
+        f"Reference answer:\n{gt}\n\n"
+        "Extract clinically meaningful terms from both answers. Treat equivalent expressions as matches. "
+        "Return JSON only in this format: {\"student\": [\"xxx\", \"xxx\"], \"answer\": [\"xxx\", \"xxx\"]}."
     )
 
 
@@ -232,15 +345,11 @@ def _normalize_base_url(u: str) -> str:
 
 
 def discover_infer_jsons(infer_root: str, tid: int) -> Dict[str, str]:
-    """
-    递归扫描 infer_root 下所有匹配 *_task{tid}.json 的文件。
-    返回: {model_tag: absolute_path}
-      - model_tag 用相对路径（相对 infer_root）去掉后缀得到，统一用 '/' 分隔
-      - 若同一 model_tag 出现多个文件，保留 mtime 更新的那一个
-    例：
-      infer_root/result/moonshotai/kimi-k2_task9.json
-      -> model_tag = "moonshotai/kimi-k2"
-    """
+    """Discover inference JSON files for one task and map model tags to absolute paths.
+
+Example:
+    infer_root/result/moonshotai/kimi-k2_task9.json -> model_tag "moonshotai/kimi-k2"
+"""
     infer_root = os.path.abspath(infer_root)
     suffix = f"_task{tid}.json"
     found: Dict[str, str] = {}
@@ -276,12 +385,12 @@ class JudgeSpec:
 
 def parse_judge_specs(spec_str: str, *, default_local_base: str, default_openai_base: str) -> List[JudgeSpec]:
     """
-    逗号分隔 spec：
-      - local:modelA
-      - local@http://YOUR_HOST:YOUR_PORT
-      - openai:gpt-4o-mini
-      - openai@https://YOUR_OPENAI_COMPATIBLE_BASE_URL/:gpt-4o-mini
-    """
+ spec:
+ - local:modelA
+ - local@http://localhost:8000
+ - openai:gpt-4o-mini
+ - openai@https://api.openai.com/v1/:gpt-4o-mini
+ """
     specs: List[JudgeSpec] = []
     for raw in (spec_str or "").split(","):
         raw = raw.strip()
@@ -477,9 +586,7 @@ JUDGE_ENSEMBLE_TAG: str = ""
 
 
 async def async_call_llm(prompt: str, as_dict: bool = True):
-    """
-    主流程（criteria/recall）仍走 args.api_backend + args.eval_model
-    """
+    """Call the configured judge model for criteria and recall prompts."""
     if API_BACKEND == "local":
         return await asyncio.to_thread(
             get_llm_response_local, client, model, prompt, 5, as_dict, timeout=600
@@ -493,7 +600,7 @@ async def async_call_llm(prompt: str, as_dict: bool = True):
 
 
 async def generate_criteria(gt: list, inp: list, pids: list, bar_desc: str = None):
-    assert len(gt) == len(inp) == len(pids), "gt/inp/pids 长度需一致"
+    assert len(gt) == len(inp) == len(pids), "gt/inp/pids "
 
     all_pairs = list(zip(gt, inp, pids))
     pairs: List[Tuple[str, str, str]] = []
@@ -505,13 +612,13 @@ async def generate_criteria(gt: list, inp: list, pids: list, bar_desc: str = Non
             skipped += 1
 
     print(
-        f"[criteria] task{task_id}: 总样本 {len(all_pairs)} 条，"
-        f"已有干净标准跳过 {skipped} 条，"
-        f"需要生成/修复 {len(pairs)} 条。"
+        f"[criteria] task{task_id}: total samples {len(all_pairs)}, "
+        f"skipped {skipped}, "
+        f"generate/repair {len(pairs)}."
     )
 
     if not pairs:
-        print(f"[criteria] task{task_id}: 无需生成/修复，直接返回。")
+        print(f"[criteria] task{task_id}: no generation or repair needed.")
         return
 
     desc = bar_desc or f"Generating criteria (task_id={task_id})"
@@ -544,11 +651,11 @@ FINAL_RE = re.compile(r"##\s*Final Response\s*\n+", re.IGNORECASE)
 
 def extract_final_answer(text: str) -> str:
     """
-    只保留模型最终回答部分：
-    1) 若包含 <think>...</think>：取最后一个 </think> 之后的内容
-    2) 否则若包含 '## Thinking' 且包含 '## Final Response'：取最后一个 '## Final Response' 之后的内容
-    3) 否则：返回原文本（strip）
-    """
+ model:
+ 1) <think>...</think>: </think> content
+ 2) no '## Thinking' '## Final Response': '## Final Response' content
+ 3) no: (strip)
+ """
     if not text:
         return ""
     s = str(text).strip()
@@ -573,8 +680,8 @@ def build_scoring_triples_uid(
     pids: List[str]
 ) -> List[tuple]:
     """
-    triple: (inf_text, criteria_dict, gt_text, input_text, uid)
-    """
+ triple: (inf_text, criteria_dict, gt_text, input_text, uid)
+ """
     uid2inf: Dict[str, str] = {}
     if os.path.exists(infer_json_path):
         with open(infer_json_path, "r", encoding="utf-8") as f:
@@ -593,7 +700,7 @@ def build_scoring_triples_uid(
 
         print("infer number:", len(uid2inf))
     else:
-        print(f"[WARN] 推理结果文件不存在: {infer_json_path}")
+        print(f"[WARN] result file does not exist: {infer_json_path}")
 
     uid2crit: Dict[str, Dict[str, Any]] = {}
     for pid in set(pids):
@@ -626,7 +733,7 @@ def build_scoring_triples_uid(
         triples.append((itext, cdict, g, i, uid))
 
     if miss_inf or miss_crit:
-        print(f"[WARN] 未匹配到 inference: {miss_inf} 条；未匹配到 criteria: {miss_crit} 条。")
+        print(f"[WARN] missing inference: {miss_inf}; missing criteria: {miss_crit}.")
 
     return triples
 
@@ -646,7 +753,7 @@ def filter_cases_with_nonempty_inference(triples: List[tuple],
     dropped = len(triples) - len(keep_idx)
     if dropped > 0:
         prefix = f"[{tag}] " if tag else ""
-        print(f"{prefix}[INFO] inference 为空的样本将跳过 judge/score/recall：保留 {len(keep_idx)} / {len(triples)}，丢弃 {dropped}")
+        print(f"{prefix}[INFO] skipped empty inference samples for judge/score/recall: kept {len(keep_idx)} / {len(triples)}, dropped {dropped}")
 
     triples2 = [triples[i] for i in keep_idx]
     gt2 = [gt[i] for i in keep_idx]
@@ -691,9 +798,9 @@ def _majority_true(values: List[bool], total: int) -> bool:
 
 def _merge_vote_nodes(nodes: List[Any], total_models: int) -> Any:
     """
-    递归合并多个 judge 输出；对所有出现 "是否覆盖" 的 dict 字段做多数投票。
-    非法/缺失视为 False。
-    """
+ Merge judge outputs by majority vote for the covered field.
+ / False.
+ """
     norm_nodes = [n if n is not None else {} for n in nodes]
 
     if all(isinstance(n, dict) for n in norm_nodes):
@@ -703,14 +810,14 @@ def _merge_vote_nodes(nodes: List[Any], total_models: int) -> Any:
             keys.update(n.keys())
 
         for k in keys:
-            if k == "是否覆盖":
+            if k == "covered":
                 bools: List[bool] = []
                 for n in norm_nodes:
-                    v = n.get("是否覆盖", False)
+                    v = n.get("covered", False)
                     bools.append(bool(v) if isinstance(v, bool) else False)
-                out["是否覆盖"] = _majority_true(bools, total_models)
-                out["投票_true"] = int(sum(1 for b in bools if b))
-                out["投票_total"] = int(total_models)
+                out["covered"] = _majority_true(bools, total_models)
+                out["vote_true"] = int(sum(1 for b in bools if b))
+                out["vote_total"] = int(total_models)
             else:
                 vals = [n.get(k) for n in norm_nodes]
                 if any(isinstance(v, (dict, list)) for v in vals if v is not None):
@@ -768,11 +875,11 @@ async def generate_judgements(
     resume_match_judge_specs: bool = True,
 ) -> list:
     """
-    断点重续（mode=judge）：
-      - resume_skip="any": 只要存在记录就跳过（哪怕是 error/空）
-      - resume_skip="valid": 只有含有效 category 才跳过
-      - resume_match_judge_specs=True: 通过比较存储的 judge_specs 内容判断是否同一组 judge
-    """
+ (mode=judge):
+ - resume_skip="any": skip(yes error/)
+ - resume_skip="valid": skip records that already contain a valid category
+ - resume_match_judge_specs=True: match existing judgements by judge specification
+ """
     judgements: List[Optional[dict]] = [None] * len(pids)
     sem = asyncio.Semaphore(MAX_CONCURRENCY)
     total_models = len(judge_specs)
@@ -1008,19 +1115,15 @@ def load_judgements_from_meta(
                 rc.pop(k, None)
             judgements.append(rc)
 
-    print(f"[INFO] 从已有 {subpath} 加载: 共 {len(judgements)} 条，未匹配 {missing} 条。")
+    print(f"[INFO] loaded {len(judgements)} judgements from {subpath}; missing {missing}.")
     return judgements
 
 
 # =========================
-# score 模式：显式选择已有 judgement 文件
+# score: choice judgement file
 # =========================
 def parse_ensemble_tag_from_agg_filename(task_id: int, student_model_tag: str, agg_path: str) -> str:
-    """
-    从聚合 judgement 文件名中解析 ensemble_tag
-    例如:
-      task5_judgements_anthropic_claude-sonnet-4.5__vote_xxx.json -> vote_xxx
-    """
+    """Parse the ensemble tag from an aggregate judgement filename."""
     bn = os.path.basename(agg_path)
     prefix = f"task{task_id}_judgements_{_safe_model_tag(student_model_tag)}__"
     if bn.startswith(prefix) and bn.endswith(".json"):
@@ -1029,10 +1132,7 @@ def parse_ensemble_tag_from_agg_filename(task_id: int, student_model_tag: str, a
 
 
 def discover_score_judgement_candidates(task_id: int, student_model_tag: str) -> List[Dict[str, Any]]:
-    """
-    扫描 META_ROOT 下该 task + 该学生模型已有的 judgement 聚合文件。
-    只看聚合快照 task{tid}_judgements_{student}__*.json。
-    """
+    """Find judgement files for one task and student model under META_ROOT."""
     safe_stu = _safe_model_tag(student_model_tag)
     prefix = f"task{task_id}_judgements_{safe_stu}__"
 
@@ -1064,12 +1164,12 @@ def discover_score_judgement_candidates(task_id: int, student_model_tag: str) ->
 
 def print_score_judgement_candidates(task_id: int, student_model_tag: str):
     cands = discover_score_judgement_candidates(task_id, student_model_tag)
-    print(f"[task{task_id}] student_model={student_model_tag} 可用 judgement 快照:")
+    print(f"[task{task_id}] student_model={student_model_tag} judgement files:")
     if not cands:
-        print("  (none)")
+        print(" (none)")
         return
     for item in cands:
-        print(f"  [{item['index']}] {item['filename']}")
+        print(f" [{item['index']}] {item['filename']}")
 
 
 def resolve_score_judgement_source(
@@ -1082,20 +1182,20 @@ def resolve_score_judgement_source(
     score_judgement_file: str = "",
 ) -> Tuple[str, str]:
     """
-    返回:
-      (ensemble_tag, agg_path)
+:
+ (ensemble_tag, agg_path)
 
-    规则:
-      - 三选一: index / tag / file
-      - 若都不传，则默认返回当前 JUDGE_ENSEMBLE_TAG
-      - 若 tag/index 没匹配到，不抛异常，返回空并由上层跳过当前模型
-    """
+:
+ -: index / tag / file
+ - default: use JUDGE_ENSEMBLE_TAG
+ - tag/index,, skipmodel
+ """
     score_judgement_tag = (score_judgement_tag or "").strip()
     score_judgement_file = (score_judgement_file or "").strip()
 
     chosen = int(bool(score_judgement_index)) + int(bool(score_judgement_tag)) + int(bool(score_judgement_file))
     if chosen > 1:
-        raise ValueError("--score-judgement-index / --score-judgement-tag / --score-judgement-file 只能三选一")
+        raise ValueError("--score-judgement-index / --score-judgement-tag / --score-judgement-file ")
 
     if chosen == 0:
         return current_ensemble_tag, ""
@@ -1105,32 +1205,32 @@ def resolve_score_judgement_source(
     if score_judgement_file:
         agg_path = os.path.abspath(score_judgement_file)
         if not os.path.exists(agg_path):
-            raise FileNotFoundError(f"--score-judgement-file 指定文件不存在: {agg_path}")
+            raise FileNotFoundError(f"--score-judgement-file specified file does not exist: {agg_path}")
         ens = parse_ensemble_tag_from_agg_filename(task_id, student_model_tag, agg_path)
-        print(f"[task{task_id}] score 使用指定 judgement 文件: {agg_path}")
+        print(f"[task{task_id}] score uses specified judgement file: {agg_path}")
         if ens:
-            print(f"[task{task_id}] 解析到 ensemble_tag: {ens}")
+            print(f"[task{task_id}] ensemble_tag: {ens}")
         else:
-            print(f"[task{task_id}] 警告: 无法从文件名解析 ensemble_tag，若样本数不一致则无法按 uid 重建")
+            print(f"[task{task_id}] warning: file has no ensemble_tag; matching samples by uid.")
         return ens, agg_path
 
     if score_judgement_index:
         if score_judgement_index < 1 or score_judgement_index > len(candidates):
             print_score_judgement_candidates(task_id, student_model_tag)
             print(
-                f"[WARN] task{task_id} student_model={student_model_tag} 的 --score-judgement-index={score_judgement_index} "
-                f"越界（当前仅 {len(candidates)} 个候选），将跳过该模型。"
+                f"[WARN] task{task_id} student_model={student_model_tag} --score-judgement-index={score_judgement_index} "
+                f"is outside the available range ({len(candidates)}); skipping model."
             )
             return "", ""
         item = candidates[score_judgement_index - 1]
-        print(f"[task{task_id}] score 使用 judgement 编号 [{item['index']}]: {item['filename']}")
+        print(f"[task{task_id}] score judgement file [{item['index']}]: {item['filename']}")
         return item["ensemble_tag"], item["path"]
 
     raw = os.path.basename(score_judgement_tag)
 
     for item in candidates:
         if raw == item["filename"]:
-            print(f"[task{task_id}] score 使用 judgement 文件名匹配: {item['filename']}")
+            print(f"[task{task_id}] score judgement file: {item['filename']}")
             return item["ensemble_tag"], item["path"]
 
     prefix = f"task{task_id}_judgements_{_safe_model_tag(student_model_tag)}__"
@@ -1142,13 +1242,13 @@ def resolve_score_judgement_source(
 
     for item in candidates:
         if norm == item["ensemble_tag"]:
-            print(f"[task{task_id}] score 使用 judgement 后缀匹配: {item['filename']}")
+            print(f"[task{task_id}] score judgement file: {item['filename']}")
             return item["ensemble_tag"], item["path"]
 
     print_score_judgement_candidates(task_id, student_model_tag)
     print(
-        f"[WARN] task{task_id} student_model={student_model_tag} 未找到匹配的 judgement: {score_judgement_tag}；"
-        f"将跳过该模型。"
+        f"[WARN] task{task_id} student_model={student_model_tag} judgement not found: {score_judgement_tag}; "
+        f"skipping model."
     )
     return "", ""
 
@@ -1169,12 +1269,12 @@ def load_judgements_cached(
         with open(agg_path, "r", encoding="utf-8") as f:
             judgements = json.load(f)
         if len(judgements) == len(triples):
-            print(f"[INFO] 直接从 {agg_path} 加载 judgements，共 {len(judgements)} 条（与当前样本数一致）。")
+            print(f"[INFO] loaded {len(judgements)} sample judgements from {agg_path}.")
             return judgements
         else:
             print(
-                f"[INFO] 现有聚合判分文件 {agg_path} 的样本数({len(judgements)}) "
-                f"与当前要评测的样本数({len(triples)}) 不一致，将按当前子集从 per-patient judgement_* 重建。"
+                f"[INFO] judgement file {agg_path} sample count ({len(judgements)}) "
+                f"differs from evaluation sample count ({len(triples)}); falling back to per-patient judgement files."
             )
 
     judgements = load_judgements_from_meta(triples, pids, student_model_tag, ensemble_tag=ensemble_tag)
@@ -1182,7 +1282,7 @@ def load_judgements_cached(
         os.makedirs(os.path.dirname(agg_path), exist_ok=True)
         with open(agg_path, "w", encoding="utf-8") as f:
             json.dump(judgements, f, ensure_ascii=False, indent=2)
-        print(f"[INFO] 已将与当前子集对齐的 judgements 聚合写入 {agg_path} 以便下次直接加载。")
+        print(f"[INFO] loaded judgements and cached them to {agg_path}.")
     return judgements
 
 
@@ -1195,16 +1295,16 @@ def load_judgements_for_score(
     agg_path_override: str = "",
 ) -> list:
     """
-    score 专用加载逻辑：
-      1) 优先读取指定的聚合 judgement 文件
-      2) 若该聚合文件样本数与当前不一致，则回退到 per-patient judgement 文件按 uid 重建
-      3) 如果没有指定文件，则沿用原来的 ensemble_tag 缓存逻辑
-    """
+ score load:
+ 1) specified judgement file
+ 2) filesample, per-patient judgement file uid
+ 3) specified file and ensemble tag
+ """
     agg_path_override = (agg_path_override or "").strip()
 
     if agg_path_override:
         if not os.path.exists(agg_path_override):
-            raise FileNotFoundError(f"指定 judgement 文件不存在: {agg_path_override}")
+            raise FileNotFoundError(f"specified judgement file does not exist: {agg_path_override}")
 
         with open(agg_path_override, "r", encoding="utf-8") as f:
             loaded = json.load(f)
@@ -1215,12 +1315,12 @@ def load_judgements_for_score(
             loaded = []
 
         if len(loaded) == len(triples):
-            print(f"[INFO] 直接从指定 judgement 聚合文件加载，共 {len(loaded)} 条: {agg_path_override}")
+            print(f"[INFO] loaded {len(loaded)} records from specified judgement file: {agg_path_override}")
             return loaded
 
         print(
-            f"[INFO] 指定 judgement 聚合文件样本数({len(loaded)}) "
-            f"与当前样本数({len(triples)}) 不一致，改为从 per-patient judgement 文件按 uid 重建。"
+            f"[INFO] specified judgement file sample count ({len(loaded)}) "
+            f"differs from evaluation sample count ({len(triples)}); falling back to per-patient judgement files by uid."
         )
 
         if ensemble_tag:
@@ -1231,7 +1331,7 @@ def load_judgements_for_score(
                 ensemble_tag=ensemble_tag,
             )
 
-        print("[WARN] 未提供可用 ensemble_tag，且指定聚合文件无法直接使用。")
+        print("[WARN] No matching ensemble tag was found for the specified file.")
         return []
 
     return load_judgements_cached(
@@ -1252,9 +1352,7 @@ def get_score_output_paths(task_id: int, student_model_tag: str, ensemble_tag: s
 
 
 def score_outputs_already_done(task_id: int, student_model_tag: str, ensemble_tag: str) -> bool:
-    """
-    若 score 和 summary 都已存在且非空，则认为该模型该 judgement 已经做过 score，直接跳过，避免重复覆盖和重复写 CSV。
-    """
+    """Return whether score and summary outputs already exist for this ensemble."""
     if not ensemble_tag:
         return False
     out_scores, out_summary = get_score_output_paths(task_id, student_model_tag, ensemble_tag)
@@ -1285,8 +1383,8 @@ def filter_invalid_judgements_with_indices(judgements: List[dict],
             drop_indices.append(idx)
 
     print(
-        f"[INFO] 有效判分样本: {len(keep_indices)} / {len(judgements)} "
-        f"(丢弃 {len(drop_indices)} 条仅含 error/inference/thinking 的坏样本)"
+        f"[INFO] valid samples: {len(keep_indices)} / {len(judgements)} "
+        f"({len(drop_indices)} dropped error/inference/thinking samples)"
     )
     return filtered_j, keep_indices, drop_indices
 
@@ -1319,7 +1417,7 @@ def calculate_scores(judgements, gradings):
                         items_list = items[level]
                         per_item_score = gradings[category][level]
                         flat_items = list(_iter_dict_items(items_list))
-                        covered = sum(1 for item in flat_items if item.get("是否覆盖", False))
+                        covered = sum(1 for item in flat_items if item.get("covered", False))
                         total = len(flat_items)
                         score_dict[category][level] = [covered * per_item_score, total * per_item_score]
         results.append(score_dict)
@@ -1492,7 +1590,7 @@ def summarize_scores(
                 "bertscore_f1_median": _median(_clean(bert_f1)),
             }
         except Exception as e:
-            print(f"[WARN] MT 指标计算失败（不会影响主评分）：{e}")
+            print(f"[WARN] MT metrics failed: {e}")
 
     return {
         "case_macro_mean": case_macro_mean,
@@ -1509,7 +1607,7 @@ def summarize_scores(
 
 
 
-def write_metrics_csvs(
+def write_metric_outputs(
     out_dir: str,
     *,
     run_ts: str,
@@ -1559,7 +1657,7 @@ def write_metrics_csvs(
         "mt_n": mt.get("n"),
     }
     overall_fields = list(overall_row.keys())
-    append_rows_csv(os.path.join(out_dir, "overall_summary.csv"), overall_fields, [overall_row])
+    append_rows_csv(os.path.join(out_dir, "summary_scores.csv"), overall_fields, [overall_row])
 
     level_rows = []
     for lv, obj in (summary.get("level_micro") or {}).items():
@@ -1630,7 +1728,7 @@ async def run_one_task(
     *,
     infer_json_path_override: Optional[str] = None,
     run_ts: str,
-    metrics_csv_dir: str,
+    metrics_output_dir: str,
     subset_csv_path: str,
     judge_backend: str,
     judge_model: str,
@@ -1644,12 +1742,12 @@ async def run_one_task(
     try:
         mod = __import__(mod_name, fromlist=["task", "task_id", "concerns", "criteria_format", "grading_format", "gradings"])
     except ImportError as e:
-        print(f"[WARN] 找不到 {mod_name}，跳过 task{tid}：{e}")
+        print(f"[WARN] failed to import {mod_name}; skipping task{tid}: {e}")
         return
 
     task = getattr(mod, "task")
     _tid_from_mod = getattr(mod, "task_id")
-    assert _tid_from_mod == tid, f"{mod_name}.task_id={_tid_from_mod} 与 tid {tid} 不一致"
+    assert _tid_from_mod == tid, f"{mod_name}.task_id={_tid_from_mod} does not match tid {tid}"
 
     concerns = getattr(mod, "concerns")
     criteria_format = getattr(mod, "criteria_format")
@@ -1657,14 +1755,14 @@ async def run_one_task(
     gradings = getattr(mod, "gradings")
 
     if not isinstance(gradings, dict) or not gradings:
-        raise RuntimeError(f"[task{tid}] {mod_name}.gradings 为空或非法，导致 judge 输出全部被判为无效。")
+        raise RuntimeError(f"[task{tid}] {mod_name}.gradings is empty; all judge outputs would be invalid.")
     print(f"[task{tid}] gradings categories = {list(gradings.keys())}")
 
-    print(f"\n========== 开始处理 task{tid}，mode={mode}，student_model={infer_model_tag} ==========")
+    print(f"\n========== start processing task{tid}, mode={mode}, student_model={infer_model_tag} ==========")
 
     data_path = os.path.join(DATA_ROOT, f"task{tid}.json")
     if not os.path.exists(data_path):
-        print(f"[WARN] 数据文件不存在: {data_path}，跳过 task{tid}")
+        print(f"[WARN] data file does not exist: {data_path}; skipping task{tid}")
         return
 
     gt, inp, pids = load_data(data_path)
@@ -1678,13 +1776,13 @@ async def run_one_task(
                 inp_f.append(i)
                 pids_f.append(p)
         gt, inp, pids = gt_f, inp_f, pids_f
-        print(f"[task{tid}] 使用 subset_test_ids 过滤后：{before_n} → {len(pids)} 条样本")
+        print(f"[task{tid}] subset_test_ids filter: {before_n} -> {len(pids)} samples")
         if not pids:
-            print(f"[task{tid}] 过滤后无样本，直接跳过该任务。")
+            print(f"[task{tid}] no samples after filtering; skipping task.")
             return
 
     if max_num > 0 and len(pids) > max_num:
-        print(f"[task{tid}] max_num={max_num} 生效，样本数截断为 {max_num}")
+        print(f"[task{tid}] max_num={max_num}; sampling first {max_num} cases")
         gt, inp, pids = gt[:max_num], inp[:max_num], pids[:max_num]
 
     if mode in ("criteria", "all"):
@@ -1693,7 +1791,7 @@ async def run_one_task(
     if mode in ("judge", "score", "all"):
         infer_json_path = infer_json_path_override or os.path.join(infer_root, f"{infer_model_tag}_task{tid}.json")
         if not os.path.exists(infer_json_path):
-            print(f"[WARN] 推理结果文件不存在: {infer_json_path}，跳过 task{tid} 的 judge/score")
+            print(f"[WARN] result file does not exist: {infer_json_path}; skipping task{tid} judge/score")
             return
 
         triples = build_scoring_triples_uid(infer_json_path, gt, inp, pids)
@@ -1702,7 +1800,7 @@ async def run_one_task(
             triples, gt, inp, pids, tag=f"task{tid}"
         )
         if not triples:
-            print(f"[task{tid}] 过滤后无可用 inference 的样本，直接跳过 judge/score/recall。")
+            print(f"[task{tid}] no non-empty inference samples; skipping judge/score/recall.")
             return
 
         score_ensemble_tag = JUDGE_ENSEMBLE_TAG
@@ -1723,19 +1821,19 @@ async def run_one_task(
             )
 
             if not score_ensemble_tag and not score_agg_path:
-                print(f"[WARN] task{tid} student_model={infer_model_tag} 没有可用的 judgement 来源，跳过 score。")
+                print(f"[WARN] task{tid} student_model={infer_model_tag} no judgement source; skipping score.")
                 return
 
             if not score_ensemble_tag and score_agg_path:
-                print(f"[WARN] task{tid} student_model={infer_model_tag} 无法确定 ensemble_tag，无法安全命名 score 输出，跳过。")
+                print(f"[WARN] task{tid} student_model={infer_model_tag} no ensemble_tag for score output; skipping.")
                 return
 
             if score_outputs_already_done(tid, infer_model_tag, score_ensemble_tag):
                 out_scores0, out_summary0 = get_score_output_paths(tid, infer_model_tag, score_ensemble_tag)
                 print(
-                    f"[INFO] task{tid} student_model={infer_model_tag} 的 score 已存在，跳过重复处理：\n"
-                    f"  - {out_scores0}\n"
-                    f"  - {out_summary0}"
+                    f"[INFO] task{tid} student_model={infer_model_tag} score outputs already exist; skipping:\n"
+                    f" - {out_scores0}\n"
+                    f" - {out_summary0}"
                 )
                 return
 
@@ -1756,7 +1854,7 @@ async def run_one_task(
             os.makedirs(os.path.dirname(agg_path), exist_ok=True)
             with open(agg_path, "w", encoding="utf-8") as f:
                 json.dump(judgements_new, f, ensure_ascii=False, indent=2)
-            print(f"[INFO] 判分结果快照写入: {agg_path}")
+            print(f"[INFO] judgement result: {agg_path}")
 
         if mode in ("score", "all"):
             judgements_all = load_judgements_for_score(
@@ -1767,14 +1865,14 @@ async def run_one_task(
                 agg_path_override=score_agg_path,
             )
             if not judgements_all:
-                print(f"[WARN] task{tid} 未能加载到任何 judgements，无法计算分数。")
+                print(f"[WARN] task{tid} could not load judgements.")
                 return
 
             judgements_valid, keep_indices, drop_indices = filter_invalid_judgements_with_indices(
                 judgements_all, gradings
             )
             if not judgements_valid:
-                print(f"[WARN] task{tid} 过滤后无有效判分样本。")
+                print(f"[WARN] task{tid} has no valid samples.")
                 return
 
             pids_valid = [pids[i] for i in keep_indices]
@@ -1814,8 +1912,8 @@ async def run_one_task(
                 score_judge_backend = "existing"
                 score_judge_model = os.path.basename(score_agg_path)
 
-            write_metrics_csvs(
-                metrics_csv_dir,
+            write_metric_outputs(
+                metrics_output_dir,
                 run_ts=run_ts,
                 task_id=tid,
                 student_model_tag=infer_model_tag,
@@ -1826,23 +1924,23 @@ async def run_one_task(
                 subset_csv=subset_csv_path,
                 summary=summary_obj,
             )
-            print(f"[INFO] Metrics appended to CSVs under: {metrics_csv_dir}")
+            print(f"[INFO] Metrics appended to CSVs under: {metrics_output_dir}")
 
 
 async def main(args):
     global client, model, API_BACKEND, JUDGE_SPECS, JUDGE_CLIENTS, JUDGE_ENSEMBLE_TAG
 
     run_ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    metrics_csv_dir = args.metrics_csv_dir or os.path.join(META_ROOT, "metrics_csv")
+    metrics_output_dir = args.metrics_output_dir or os.path.join(META_ROOT, "metric_outputs")
 
     API_BACKEND = args.api_backend
-    model = args.eval_model or "/path/to/model"
+    model = args.eval_model or "local-model"
 
     if args.infer_all and args.score_judgement_file:
-        raise ValueError("--score-judgement-file 与 --infer-all 不能同时使用；请改用 --score-judgement-index 或 --score-judgement-tag")
+        raise ValueError("--score-judgement-file cannot be used with --infer-all; use --score-judgement-index or --score-judgement-tag instead")
 
     if API_BACKEND == "local":
-        LOCAL_BASE_URL = _normalize_base_url(os.getenv("LOCAL_BASE_URL", "http://YOUR_HOST:YOUR_PORT"))
+        LOCAL_BASE_URL = _normalize_base_url(os.getenv("LOCAL_BASE_URL", "http://localhost:8000"))
         LOCAL_HEADERS = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -1853,21 +1951,21 @@ async def main(args):
             headers=LOCAL_HEADERS,
             timeout=60,
         )
-        print(f"[INFO] 主流程使用本地 HTTP 接口，base_url={LOCAL_BASE_URL}, model(default)={model}")
+        print(f"[INFO] using local HTTP backend, base_url={LOCAL_BASE_URL}, model(default)={model}")
 
     elif API_BACKEND == "openai":
         from openai import OpenAI
-        base_url = _normalize_base_url(args.openai_base_url or os.getenv("OPENAI_BASE_URL", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL"))
+        base_url = _normalize_base_url(args.openai_base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError("API_BACKEND=openai 时必须在环境中设置 OPENAI_API_KEY")
+            raise RuntimeError("API_BACKEND=openai requires OPENAI_API_KEY")
         client = OpenAI(api_key=api_key, base_url=base_url.rstrip("/"))
-        print(f"[INFO] 主流程使用 OpenAI 形式 API，base_url={base_url}, model(default)={model}")
+        print(f"[INFO] using OpenAI-compatible API, base_url={base_url}, model(default)={model}")
     else:
-        raise ValueError(f"未知 API_BACKEND: {API_BACKEND}")
+        raise ValueError(f"unknown API_BACKEND: {API_BACKEND}")
 
-    default_local_base = _normalize_base_url(os.getenv("LOCAL_BASE_URL", "http://YOUR_HOST:YOUR_PORT"))
-    default_openai_base = _normalize_base_url(args.openai_base_url or os.getenv("OPENAI_BASE_URL", "https://YOUR_OPENAI_COMPATIBLE_BASE_URL"))
+    default_local_base = _normalize_base_url(os.getenv("LOCAL_BASE_URL", "http://localhost:8000"))
+    default_openai_base = _normalize_base_url(args.openai_base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
 
     judge_specs: List[JudgeSpec] = []
     if args.judge_specs.strip():
@@ -1879,7 +1977,7 @@ async def main(args):
     elif args.judge_models.strip():
         models = [x.strip() for x in args.judge_models.split(",") if x.strip()]
         if not models:
-            raise ValueError("--judge-models 为空")
+            raise ValueError("--judge-models is empty")
         for m in models:
             base = default_local_base if args.api_backend == "local" else default_openai_base
             base = _normalize_base_url(base)
@@ -1894,7 +1992,7 @@ async def main(args):
         judge_specs = [JudgeSpec(backend=API_BACKEND, model=model, base_url=base, name=name)]
 
     if len(judge_specs) < 1:
-        raise ValueError("未能解析到任何 judge specs")
+        raise ValueError("At least one judge specification is required")
 
     judge_clients: Dict[tuple, Any] = {}
 
@@ -1915,7 +2013,7 @@ async def main(args):
         else:
             from openai import OpenAI
             if not openai_api_key:
-                raise RuntimeError("你使用了 openai judge spec，但环境中没有 OPENAI_API_KEY")
+                raise RuntimeError("OpenAI judge specifications require OPENAI_API_KEY")
             judge_clients[key] = OpenAI(api_key=openai_api_key, base_url=sp.base_url.rstrip("/"))
 
     JUDGE_SPECS = judge_specs
@@ -1924,7 +2022,7 @@ async def main(args):
 
     print("[INFO] Judge specs (mixed backends):")
     for sp in judge_specs:
-        print(f"  - backend={sp.backend} base_url={sp.base_url} model={sp.model} name={sp.name}")
+        print(f" - backend={sp.backend} base_url={sp.base_url} model={sp.model} name={sp.name}")
     print(f"[INFO] Judge ensemble tag: {JUDGE_ENSEMBLE_TAG}")
 
     task_ids: List[int] = []
@@ -1935,10 +2033,10 @@ async def main(args):
         try:
             task_ids.append(int(x))
         except ValueError:
-            print(f"[WARN] 非法 task id: {x}，已忽略")
+            print(f"[WARN] invalid task id ignored: {x}")
     task_ids = sorted(set(task_ids))
     if not task_ids:
-        print("[ERROR] 未指定有效的 task id（例如 --tasks 5,6,10）")
+        print("[ERROR] no valid task id specified (for example, --tasks 5,6,10)")
         return
 
     subset_pids: Optional[Set[str]] = None
@@ -1946,12 +2044,12 @@ async def main(args):
     if subset_csv_path:
         subset_path = Path(subset_csv_path)
         if not subset_path.exists():
-            raise FileNotFoundError(f"--subset-test-ids-csv 指定的文件不存在：{subset_path}")
+            raise FileNotFoundError(f"--subset-test-ids-csv specified file does not exist: {subset_path}")
         df_sub = pd.read_csv(subset_path, encoding="utf-8-sig")
         if "patient_id" not in df_sub.columns:
-            raise ValueError(f"{subset_path} 缺少列：patient_id")
+            raise ValueError(f"{subset_path} must contain a patient_id column")
         subset_pids = set(df_sub["patient_id"].astype(str).tolist())
-        print(f"[INFO] 从 subset_test_ids_csv 加载到 {len(subset_pids)} 个 patient_id；后续仅对这些患者进行评测。")
+        print(f"[INFO] loaded {len(subset_pids)} patient_id values from subset_test_ids_csv; evaluating this subset.")
 
     judge_backend = "mixed" if any(sp.backend != judge_specs[0].backend for sp in judge_specs) else judge_specs[0].backend
     judge_model = "|".join([sp.name for sp in judge_specs])
@@ -1968,7 +2066,7 @@ async def main(args):
                 max_num=args.max_num,
                 subset_pids=subset_pids,
                 run_ts=run_ts,
-                metrics_csv_dir=metrics_csv_dir,
+                metrics_output_dir=metrics_output_dir,
                 subset_csv_path=subset_csv_path,
                 judge_backend=judge_backend,
                 judge_model=judge_model,
@@ -1979,13 +2077,13 @@ async def main(args):
         if infer_all:
             model2path = discover_infer_jsons(args.infer_root, tid)
             if not model2path:
-                print(f"[WARN] infer_all=1 但在 {args.infer_root} 下未找到任何 *_task{tid}.json，跳过 task{tid}")
+                print(f"[WARN] infer_all=1 found no *_task{tid}.json files under {args.infer_root}; skipping task{tid}")
                 continue
-            print(f"[INFO] task{tid}: infer_all 发现 {len(model2path)} 个模型：")
+            print(f"[INFO] task{tid}: infer_all found {len(model2path)} models:")
             for mt, pth in list(model2path.items())[:50]:
-                print(f"  - {mt}  =>  {pth}")
+                print(f" - {mt} => {pth}")
             if len(model2path) > 50:
-                print(f"  ... (仅展示前 50 / {len(model2path)} 个)")
+                print(f"... (showing 50 / {len(model2path)})")
 
             for model_tag, infer_path in model2path.items():
                 await run_one_task(
@@ -1997,7 +2095,7 @@ async def main(args):
                     subset_pids=subset_pids,
                     infer_json_path_override=infer_path,
                     run_ts=run_ts,
-                    metrics_csv_dir=metrics_csv_dir,
+                    metrics_output_dir=metrics_output_dir,
                     subset_csv_path=subset_csv_path,
                     judge_backend=judge_backend,
                     judge_model=judge_model,
@@ -2012,7 +2110,7 @@ async def main(args):
                 max_num=args.max_num,
                 subset_pids=subset_pids,
                 run_ts=run_ts,
-                metrics_csv_dir=metrics_csv_dir,
+                metrics_output_dir=metrics_output_dir,
                 subset_csv_path=subset_csv_path,
                 judge_backend=judge_backend,
                 judge_model=judge_model,
@@ -2021,15 +2119,15 @@ async def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="多任务判分 / 评分标准 / 召回率计算脚本（支持混合 judge + 投票 + score 显式指定已有 judgement）")
-    parser.add_argument("--tasks", type=str, default="10", help="任务编号，逗号分隔，例如: 5,6,10")
+    parser = argparse.ArgumentParser(description="Generate rubrics, run judges, and score ORACLE task outputs.")
+    parser.add_argument("--tasks", type=str, default="10", help="Comma-separated task IDs, for example: 5,6,10")
     parser.add_argument("--mode", type=str, default="score", choices=["criteria", "judge", "score", "all"])
     parser.add_argument("--infer-model-tag", type=str, default=DEFAULT_INFER_MODEL_TAG)
     parser.add_argument("--infer-root", type=str, default=DEFAULT_INFER_ROOT)
     parser.add_argument(
         "--infer-all",
         action="store_true",
-        help="递归扫描 --infer-root 下所有 *_task{tid}.json（支持子目录），对所有模型执行 judge/score/all。开启后忽略 --infer-model-tag。"
+        help="Discover *_task{tid}.json files under --infer-root and judge or score every model tag."
     )
     parser.add_argument("--max-num", type=int, default=-1)
     parser.add_argument("--subset-test-ids-csv", type=str, default="")
@@ -2041,24 +2139,24 @@ if __name__ == "__main__":
         type=str,
         default="valid",
         choices=["any", "valid"],
-        help="mode=judge 断点重续跳过策略：any=只要存在记录就跳过；valid=必须有有效category才跳过"
+        help="mode=judge resume behavior: any skips any existing record; valid skips records with valid categories"
     )
     parser.add_argument(
         "--resume-any-ensemble",
         action="store_true",
-        help="断点重续时忽略 ensemble_tag，到同模型其它 judgement_* 文件里找 uid（ensemble_tag 变了时用，慎用）"
+        help="Resume from any existing judgement file for the same model tag, regardless of ensemble tag."
     )
     parser.add_argument(
         "--resume-match-judge-specs",
         action="store_true",
         default=True,
-        help="断点重续时通过比较存储的 judge_specs 内容（只比 model）来判断是否可跳过（默认开启）"
+        help="Skip existing judgements when judge specifications match by model (default)."
     )
     parser.add_argument(
         "--no-resume-match-judge-specs",
         action="store_false",
         dest="resume_match_judge_specs",
-        help="禁用 judge_specs 内容匹配，仅通过 ensemble_tag 判断"
+        help="Disable judge-specification matching during judgement resume."
     )
 
     parser.add_argument(
@@ -2066,8 +2164,8 @@ if __name__ == "__main__":
         type=str,
         default="",
         help=(
-            "混合 judge 规格（逗号分隔）："
-            "local:modelA,local@http://host:8888/v1/:modelB,openai:gpt-4o-mini,openai@https://YOUR_OPENAI_COMPATIBLE_BASE_URL/:gpt-4o"
+            "Comma-separated judge specifications, for example: "
+            "local:modelA,local@http://localhost:8888/v1/:modelB,openai:gpt-4o-mini,openai@https://api.openai.com/v1/:gpt-4o"
         )
     )
 
@@ -2075,42 +2173,43 @@ if __name__ == "__main__":
         "--judge-models",
         type=str,
         default="",
-        help="同一 backend 的多 judge 模型（逗号分隔）。若设置了 --judge-specs，则该参数忽略。"
+        help="Comma-separated judge model names for the selected backend. Ignored when --judge-specs is set."
     )
 
     parser.add_argument(
-        "--metrics-csv-dir",
+        "--metrics-output-dir",
+        dest="metrics_output_dir",
         type=str,
         default="",
-        help="指标 CSV 输出目录；默认写到 META_ROOT/metrics_csv 下（追加写入）"
+        help="Directory for score outputs; default is META_ROOT/metric_outputs."
     )
 
-    # ===== 新增：score 模式显式选择已有 judgement =====
+    # Score from a selected judgement file.
     parser.add_argument(
         "--list-score-judgements",
         action="store_true",
-        help="仅列出当前 task + infer-model-tag 可用的 judgement 聚合文件编号，然后退出该 task。仅对 mode=score 生效。infer-all 时会为每个模型分别列出。"
+        help="List available judgement files for each task and model tag, then exit."
     )
 
     parser.add_argument(
         "--score-judgement-index",
         type=int,
         default=0,
-        help="score 模式下，按编号选择已有 judgement 聚合文件（从 1 开始，按文件名排序）。infer-all 时对每个学生模型分别生效。"
+        help="Select a judgement file for scoring by 1-based index when --infer-all is enabled."
     )
 
     parser.add_argument(
         "--score-judgement-tag",
         type=str,
         default="",
-        help="score 模式下，直接指定已有 judgement 的 ensemble_tag 或完整文件名。infer-all 时对每个学生模型分别匹配。"
+        help="Select a judgement file for scoring by ensemble tag when --infer-all is enabled."
     )
 
     parser.add_argument(
         "--score-judgement-file",
         type=str,
         default="",
-        help="score 模式下，直接指定已有 judgement 聚合 json 的完整路径。注意：不能与 --infer-all 同时使用。"
+        help="Select a specific judgement JSON file for scoring. Do not combine with --infer-all."
     )
 
     args = parser.parse_args()

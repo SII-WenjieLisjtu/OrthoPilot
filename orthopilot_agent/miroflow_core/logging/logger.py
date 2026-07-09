@@ -206,8 +206,8 @@ def make_task_logger(task_id: str, log_dir: Path) -> logging.Handler:
 
 def remove_all_console_handlers():
     """
-    Remove all console handlers (StreamHandler/RichHandler) from all loggers in the current process.
-    """
+ Remove all console handlers (StreamHandler/RichHandler) from all loggers in the current process.
+ """
     for name, logger in logging.Logger.manager.loggerDict.items():
         if isinstance(logger, logging.Logger):
             handlers_to_remove = []

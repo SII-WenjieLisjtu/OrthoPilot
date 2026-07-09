@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 build_medibook_index.py
-离线构建 medibook 索引（带进度条 + 支持 GPU/CPU）
+ medibook (+ GPU/CPU)
 
-环境变量：
-- MEDIBOOK_DEVICE:  "cuda:0" / "cuda:1" / "cpu"（默认 cpu）
-- MEDIBOOK_INDEX_WORKERS: CPU 多进程 worker 数（默认 8；仅 cpu 模式启用）
-- MEDIBOOK_INDEX_BATCH: encode 批大小（默认 128；GPU 可调大如 256/512）
+:
+- MEDIBOOK_DEVICE: "cuda:0" / "cuda:1" / "cpu"(default cpu)
+- MEDIBOOK_INDEX_WORKERS: CPU worker (default 8; cpu)
+- MEDIBOOK_INDEX_BATCH: encode (default 128; GPU 256/512)
 """
 
 import os
@@ -18,9 +18,9 @@ from multiprocessing import get_context
 import numpy as np
 from tqdm import tqdm
 
-# ============== 配置 ==============
+# ============== ==============
 MODEL_NAME = "BAAI/bge-base-zh-v1.5"
-QUERY_INSTR = "为这个句子生成表示以用于检索相关文章："
+QUERY_INSTR = "generate: "
 USE_FP16 = True
 
 DEVICE = os.getenv("MEDIBOOK_DEVICE", "cpu").strip().lower()   # "cuda:0" or "cpu"
@@ -89,7 +89,7 @@ def collect_keys_and_leaves(book: Dict[str, Any]) -> Tuple[List[Dict], List[Dict
                 leaves.append({
                     "path": p,
                     "path_str": " -> ".join(p),
-                    "book_title": p[0] if p else "医学书籍知识库",
+                    "book_title": p[0] if p else "",
                     "text": v,
                 })
 
@@ -101,8 +101,8 @@ def collect_keys_and_leaves(book: Dict[str, Any]) -> Tuple[List[Dict], List[Dict
 
 def encode_texts_singleprocess(texts: List[str], batch_size: int, device: str) -> np.ndarray:
     """
-    单进程 encode（推荐 GPU 用这个；CPU 也可以用）
-    """
+ encode(GPU; CPU)
+ """
     from FlagEmbedding import FlagAutoModel
     devs = [device] if device != "cpu" else ["cpu"]
 
@@ -150,8 +150,8 @@ def _encode_batch_cpu(texts: List[str]) -> np.ndarray:
 
 def encode_texts_multiprocess_cpu(texts: List[str], num_workers: int, batch_size: int) -> np.ndarray:
     """
-    CPU 多进程 encode + tqdm 进度条（保持顺序用 imap）
-    """
+ CPU encode + tqdm (imap)
+ """
     ctx = get_context("spawn")
     tasks = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
 
@@ -166,15 +166,15 @@ def encode_texts_multiprocess_cpu(texts: List[str], num_workers: int, batch_size
 
 def encode_texts(texts: List[str]) -> np.ndarray:
     """
-    统一入口：
-    - GPU：单进程（推荐）
-    - CPU：默认多进程（可用 MEDIBOOK_INDEX_WORKERS 控制）
-    """
+:
+ - GPU: ()
+ - CPU: default(MEDIBOOK_INDEX_WORKERS)
+ """
     if DEVICE.startswith("cuda"):
-        # GPU：单进程更稳更快
+        # GPU:
         return encode_texts_singleprocess(texts, BATCH_SIZE, DEVICE)
     else:
-        # CPU：多进程更快
+        # CPU:
         return encode_texts_multiprocess_cpu(texts, NUM_WORKERS, BATCH_SIZE)
 
 
@@ -188,7 +188,7 @@ def main():
     for i, m in enumerate(keys_meta):
         m["kid"] = i
     keys_texts = [m["key"] for m in keys_meta]
-    print(f"[Index] keys: {len(keys_texts)}  | device={DEVICE}  | batch={BATCH_SIZE}")
+    print(f"[Index] keys: {len(keys_texts)} | device={DEVICE} | batch={BATCH_SIZE}")
 
     keys_emb = encode_texts(keys_texts)
     np.save(OUT_DIR / "keys_emb.npy", keys_emb)
@@ -196,7 +196,7 @@ def main():
         for m in keys_meta:
             f.write(json.dumps(m, ensure_ascii=False) + "\n")
 
-    # ---- leaf chunks (构造时加进度条) ----
+    # ---- leaf chunks () ----
     chunks = []
     leaf_meta = []
     chunk_id = 0
@@ -226,7 +226,7 @@ def main():
 
     print(f"[Index] leaves: {len(leaves)}, chunks: {len(chunks)}")
 
-    # ---- chunks embedding（最耗时：加进度条 + 支持 GPU） ----
+    # ---- chunks embedding(: + GPU) ----
     chunk_texts = [c["chunk_text"] for c in chunks]
     chunks_emb = encode_texts(chunk_texts)
     np.save(OUT_DIR / "chunks_emb.npy", chunks_emb)

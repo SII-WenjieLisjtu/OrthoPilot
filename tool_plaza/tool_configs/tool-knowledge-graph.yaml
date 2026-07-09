@@ -1,7 +1,7 @@
 name: "tool-knowledge-graph"
 tool_command: "python"
 args:
-  - "-m"
-  - "tool_plaza.mcp_servers.knowledge_graph_mcp_server"
+ - "-m"
+ - "tool_plaza.mcp_servers.knowledge_graph_mcp_server"
 env:
-  KG_BASE_URL: "${oc.env:KG_BASE_URL,http://YOUR_HOST:YOUR_PORT"
+ KG_BASE_URL: "${oc.env:KG_BASE_URL,http://localhost:9004}"

@@ -7,29 +7,29 @@ import time
 import random
 from typing import Any, Dict, Iterable, List, Optional
 
-import httpx  # 改为 httpx 异步直连本地/自建 OpenAI 兼容服务
+import httpx  # httpx / OpenAI
 from tqdm import tqdm
 
-# ========================= 默认配置（可被命令行覆盖） =========================
+# ========================= default() =========================
 DEFAULT_MODEL_NAME = "HuatuoGPT-o1-72B"
-DEFAULT_MAX_WORKERS =20        # 可按后端能力调大/调小
+DEFAULT_MAX_WORKERS =20        # /
 DEFAULT_MAX_TOKENS = 2048
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_TOP_P = 1.0
-DEFAULT_TIMEOUT_SECS = 600         # 目s标超时（外层再+5s硬超时）
+DEFAULT_TIMEOUT_SECS = 600         # seconds plus a small buffer
 DEFAULT_MAX_RETRIES = 5
-JITTER_RANGE = (0.4, 1.2)         # 退避抖动
+JITTER_RANGE = (0.4, 1.2)         #
 TASK="9"
 
 
-import hashlib  # 新增
+import hashlib  #
 
 def make_case_key(obj: Dict[str, Any]) -> str:
     """
-    为每个样本生成一个用于断点续跑/去重的唯一 key：
-    - 由 id + 最后一条 human 文本 构成
-    - 相同 id 但问题不同 -> key 不同 -> 都会被推理并保存
-    """
+ samplegenerate/ key:
+ - id + human
+ - id -> key -> save
+ """
     base_id = obj.get("id", "")
     human = get_last_human_prompt(obj) or ""
     raw = f"{base_id}||{human.strip()}"
@@ -37,7 +37,7 @@ def make_case_key(obj: Dict[str, Any]) -> str:
 
 
 
-# ========================= 文件 I/O 工具 =========================
+# ========================= file I/O =========================
 def ensure_dir(p: str):
     os.makedirs(p, exist_ok=True)
 
@@ -51,7 +51,7 @@ def _atomic_write_json(path: str, obj: Any):
     os.replace(tmp, path)
 
 async def atomic_write_json(path: str, obj: Any):
-    # 用线程把阻塞 IO 丢出去，避免卡住事件循环
+    # IO,
     await asyncio.to_thread(_atomic_write_json, path, obj)
 
 def _append_line(path: str, line: str):
@@ -62,7 +62,7 @@ def _append_line(path: str, line: str):
         f.write(line)
 
 async def append_jsonl(path: str, rec: Dict[str, Any], lock: Optional[asyncio.Lock] = None):
-    """仅用于错误日志；你若想彻底不产生日志文件，可不调用。"""
+    """error; file,."""
     line = json.dumps(rec, ensure_ascii=False) + "\n"
     if lock is None:
         await asyncio.to_thread(_append_line, path, line)
@@ -72,11 +72,11 @@ async def append_jsonl(path: str, rec: Dict[str, Any], lock: Optional[asyncio.Lo
 
 def iter_input_items(input_path: str) -> Iterable[Dict[str, Any]]:
     """
-    支持：
-      - 单个 .json 文件（对象或对象列表）
-      - 单个 .jsonl 文件（每行一个对象）
-      - 目录（递归扫描 .json / .jsonl）
-    """
+:
+ - .json file
+ -.jsonl file()
+ - (.json /.jsonl)
+ """
     paths = []
     if os.path.isdir(input_path):
         for root, _, files in os.walk(input_path):
@@ -117,20 +117,20 @@ def get_last_human_prompt(conversation_obj: Dict[str, Any]) -> Optional[str]:
             last_human = m.get("value", "")
     return last_human
 
-# ========================= 本地 OpenAI-兼容 HTTP 调用（带硬超时与重试） =========================
+# ========================= OpenAI- HTTP () =========================
 async def call_model_once(
     prompt: str,
     model_name: str,
-    client: httpx.AsyncClient,   # 改：使用 httpx.AsyncClient
+    client: httpx.AsyncClient,   #: httpx.AsyncClient
     timeout_secs: int,
     temperature: float,
     top_p: float,
     max_tokens: int,
 ) -> str:
     """
-    单次模型调用：仅传 user，不带 system。
-    通过 POST {base_url}/chat/completions 调用本地/自建 OpenAI 兼容接口。
-    """
+ model: user, system.
+ POST {base_url}/chat/completions / OpenAI.
+ """
     payload = {
         # "model": model_name,
         "messages": [{"role": "user", "content": prompt}],
@@ -140,20 +140,20 @@ async def call_model_once(
     }
 
     async def _post_once() -> str:
-        # 注意：client 在 main 中已配置 base_url，例如 http://YOUR_HOST:YOUR_PORT/v1/
-        # 这里直接请求相对路径 'chat/completions'
+        #: client main base_url, http://localhost:8000/v1/
+        # path 'chat/completions'
         resp = await client.post("chat/completions", json=payload, timeout=timeout_secs)
         resp.raise_for_status()
         data = resp.json()
         return (data["choices"][0]["message"]["content"] or "")
 
-    # 硬超时：若服务端/网络卡住，强行超时
+    #: /,
     return await asyncio.wait_for(_post_once(), timeout=timeout_secs + 5)
 
 async def call_model_with_retry(
     prompt: str,
     model_name: str,
-    client: httpx.AsyncClient,   # 改：使用 httpx.AsyncClient
+    client: httpx.AsyncClient,   #: httpx.AsyncClient
     timeout_secs: int,
     temperature: float,
     top_p: float,
@@ -174,11 +174,11 @@ async def call_model_with_retry(
             await asyncio.sleep(backoff)
     raise last_err if last_err else RuntimeError("unknown error")
 
-# ========================= 单条样本处理（聚合到一个 JSON 列表文件） =========================
+# ========================= sample(JSON file) =========================
 async def process_one(
     item: Dict[str, Any],
     model_name: str,
-    client: httpx.AsyncClient,   # 改：使用 httpx.AsyncClient
+    client: httpx.AsyncClient,   #: httpx.AsyncClient
     timeout_secs: int,
     temperature: float,
     top_p: float,
@@ -192,7 +192,7 @@ async def process_one(
 ):
     cid = item.get("id") or f"sample_{int(time.time()*1000)}"
 
-    # 已完成则跳过（断点续跑：从 out_json 里恢复的 done_ids）
+    # skip(: out_json done_ids)
     if cid in shared_done_ids:
         return "skipped_done"
 
@@ -207,14 +207,14 @@ async def process_one(
             prompt, model_name, client, timeout_secs, temperature, top_p, max_tokens, max_retries
         )
 
-        # 组装新条目：在原条目基础上（深拷贝不必，浅复制+替换 value）
+        #: (, + value)
         new_item = dict(item)
         new_item.setdefault("conversations", [])
         new_item["conversations"] = list(new_item["conversations"]) + [
             {"from": model_name, "value": answer}
         ]
 
-        # 加入聚合列表并原子落盘（需要锁以保证列表与文件一致性）
+        # (file)
         async with write_lock:
             shared_out_list.append(new_item)
             shared_done_ids.add(cid)
@@ -231,24 +231,24 @@ async def process_one(
             )
         return "error"
 
-# ========================= 主流程 =========================
+# ========================= =========================
 async def main():
-    parser = argparse.ArgumentParser(description="批量异步推理到单一 JSON（仅使用 human 作为 prompt）")
+    parser = argparse.ArgumentParser(description=" JSON(human prompt)")
     parser.add_argument("--input", required=False,
-                        default=f"/path/to/orthopilot/gen_validation/test_final/task{TASK}.json",
-                        help="输入：文件(.json/.jsonl)或目录")
+                        default=f"data/task{TASK}.json",
+                        help="input: file(.json/.jsonl)")
     parser.add_argument("--out_json", required=False,
-                        default=f"/path/to/orthopilot/gen_validation/result/{DEFAULT_MODEL_NAME}_task{TASK}.json",
-                        help="输出单一 JSON 文件（列表）")
-    parser.add_argument("--model", default=DEFAULT_MODEL_NAME, help="模型名")
-    parser.add_argument("--max_workers", type=int, default=DEFAULT_MAX_WORKERS, help="最大并发")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECS, help="单次调用超时秒")
-    parser.add_argument("--max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="最大生成token")
-    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="温度")
-    parser.add_argument("--top_p", type=float, default=DEFAULT_TOP_P, help="top_p")
-    parser.add_argument("--base_url", default="http://YOUR_HOST:YOUR_PORT", help="OpenAI 兼容服务 base_url（如本地：http://YOUR_HOST:YOUR_PORT")
-    parser.add_argument("--err_log", default=f"/path/to/orthopilot/gen_validation/result/{DEFAULT_MODEL_NAME}_task{TASK}_error.json",
-                        help="（可选）错误日志 JSONL 路径；若不想生成就留空")
+                        default=f"outputs/{DEFAULT_MODEL_NAME}_task{TASK}.json",
+                        help="output JSON file")
+    parser.add_argument("--model", default=DEFAULT_MODEL_NAME, help="model")
+    parser.add_argument("--max_workers", type=int, default=DEFAULT_MAX_WORKERS, help="Maximum concurrent requests")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECS, help="Request timeout in seconds")
+    parser.add_argument("--max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Maximum generated tokens")
+    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="Generation temperature")
+    parser.add_argument("--top_p", type=float, default=DEFAULT_TOP_P, help="Nucleus sampling probability")
+    parser.add_argument("--base_url", default="http://localhost:8000", help="OpenAI-compatible base URL, for example http://localhost:8000")
+    parser.add_argument("--err_log", default=f"outputs/{DEFAULT_MODEL_NAME}_task{TASK}_error.json",
+                        help="error JSONL path; generated if failures occur")
     args = parser.parse_args()
 
     model_name   = args.model
@@ -258,7 +258,7 @@ async def main():
     temperature  = args.temperature
     top_p        = args.top_p
 
-    # 读取已有输出（断点续跑）：若 out_json 已存在，则加载并提取 done_ids
+    # output(): out_json, load done_ids
     shared_out_list: List[Dict[str, Any]] = []
     shared_done_ids: set = set()
     if os.path.exists(args.out_json):
@@ -268,15 +268,15 @@ async def main():
             if isinstance(prev, list):
                 shared_out_list = prev
                 for obj in shared_out_list:
-                    # 用内容生成去重 key，而不是简单的 id
+                    # contentgenerate key, yes id
                     cid = make_case_key(obj)
                     shared_done_ids.add(cid)
         except Exception:
-            # 如果旧文件损坏，可在这里选择：报错或初始化为空
+            # file, choice: is empty
             pass
 
 
-    # 读入全部待处理条目
+    # all
     items: List[Dict[str, Any]] = list(iter_input_items(args.input))
 
     def not_done(it: Dict[str, Any]) -> bool:
@@ -289,13 +289,13 @@ async def main():
     items = [it for it in items if not_done(it)]
 
     if not items:
-        print("所有条目均已完成或无可处理样本。")
+        print("No samples to process.")
         return
 
     write_lock = asyncio.Lock()
     sem = asyncio.Semaphore(max_workers)
 
-    # 建立 httpx 异步客户端：base_url + 认证头（OpenAI 兼容）
+    # httpx: base_url + (OpenAI)
     headers = {
     "Accept": "application/json",
     "Content-Type": "application/json",

@@ -4,12 +4,12 @@ from .parameter import ToolParameter
 
 
 class EchoTool(Tool):
-    """Echo工具示例"""
+    """Echo"""
 
     def __init__(self):
         super().__init__(
             name="echo",
-            description="回显工具，返回输入的消息内容"
+            description=", inputcontent"
         )
 
     def get_parameters(self) -> List[ToolParameter]:
@@ -17,13 +17,13 @@ class EchoTool(Tool):
             ToolParameter(
                 name="message",
                 type="string",
-                description="要回显的消息内容",
+                description="content",
                 required=True
             ),
             ToolParameter(
                 name="repeat",
                 type="integer",
-                description="重复次数，默认为1",
+                description=", default1",
                 required=False,
                 default=1
             )

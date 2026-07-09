@@ -4,33 +4,33 @@ from typing import Any, Dict, List, Optional
 
 
 def parse_tool_call(tool_call_str: str) -> Dict[str, Any]:
-    """从<tool_call>{...}</tool_call>中提取JSON"""
+    """<tool_call>{...}</tool_call>JSON"""
     match = re.search(r'<tool_call>(.*?)</tool_call>', tool_call_str, re.DOTALL)
     if not match:
-        raise ValueError("无法找到 <tool_call> 标签")
+        raise ValueError(" <tool_call> ")
 
     json_str = match.group(1).strip()
     try:
         data = json.loads(json_str)
         return data
     except json.JSONDecodeError as e:
-        raise ValueError(f"解析JSON失败: {e}")
+        raise ValueError(f"JSON: {e}")
 
 
 def parse_function_call_arguments(args_str: str) -> Dict[str, Any]:
-    """解析function call参数JSON字符串"""
+    """function-call JSON"""
     if not args_str:
         return {}
 
     try:
         return json.loads(args_str)
     except json.JSONDecodeError as e:
-        raise ValueError(f"解析function call参数失败: {e}")
+        raise ValueError(f"function call: {e}")
 
 
 def convert_parameter_types(parameters: Dict[str, Any],
                             param_definitions: List[Any]) -> Dict[str, Any]:
-    """根据参数定义转换参数类型"""
+    """"""
     converted = {}
     param_def_map = {p.name: p for p in param_definitions}
 
@@ -75,7 +75,7 @@ def convert_parameter_types(parameters: Dict[str, Any],
 
 
 def extract_message_content(response: Any) -> str:
-    """从OpenAI响应中提取文本内容"""
+    """OpenAIcontent"""
     if hasattr(response, 'choices') and len(response.choices) > 0:
         choice = response.choices[0]
         if hasattr(choice, 'message'):
@@ -86,12 +86,12 @@ def extract_message_content(response: Any) -> str:
 
 
 def build_tool_schemas(tools: List[Any]) -> List[Dict[str, Any]]:
-    """构建OpenAI function calling schemas"""
+    """OpenAI function calling schemas"""
     return [tool.to_openai_schema() for tool in tools]
 
 
 def format_tool_response(response: Any) -> str:
-    """格式化工具响应为XML字符串"""
+    """XML"""
     if hasattr(response, 'to_xml_string'):
         return response.to_xml_string()
     elif isinstance(response, dict):

@@ -1,26 +1,26 @@
 
 """
-inference.py — Minimal Fathom-Search-4B single-question runner
+inference.py - Minimal Fathom-Search-4B single-question runner
 ===============================================================
 
 - Only supports Fathom-Search (ReCall-based)
 - Adds --deepresearch flag to post-process the full trace with a Summary LLM
-  (OpenAI model id or a local vLLM /generate endpoint)
+ (OpenAI model id or a local vLLM /generate endpoint)
 - Imports system prompts from prompt.py
 
 Env:
-  SUMMARY_LLM     (default: "openai:gpt-4.1-mini")  # e.g., "openai:gpt-4.1-mini" or host an sglang server with the desired model on port XXXX and pass "http
-  OPENAI_API_KEY  (if using OpenAI backend)
+ SUMMARY_LLM (default: "openai:gpt-4.1-mini") # e.g., "openai:gpt-4.1-mini" or host an sglang server with the desired model on port XXXX and pass "http
+ OPENAI_API_KEY (if using OpenAI backend)
 
 CLI:
-  --question, --model-url, --executors, --tokenizer (optional),
-  --temperature, --max-new-tokens, --no-color,
-  --deepresearch (bool),
-  --summary-llm (optional override),
-  --summary-temperature, --summary-max-tokens
+ --question, --model-url, --executors, --tokenizer (optional),
+ --temperature, --max-new-tokens, --no-color,
+ --deepresearch (bool),
+ --summary-llm (optional override),
+ --summary-temperature, --summary-max-tokens
 """
 
-#  ./scripts/launch_inference_backend.sh fathom-search-4B /path/to/storage 1254 1255
+#./scripts/launch_inference_backend.sh fathom-search-4B data/storage 1254 1255
 
 import argparse
 import os
@@ -57,9 +57,9 @@ except Exception:
     requests = None  # graceful error later if needed
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # Helpers: normalization + boxed answer extraction
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 def normalize(s: str) -> str:
     return (s or "").strip().lower()
@@ -105,9 +105,9 @@ def extract_answer_boxed(text: str) -> str:
         return normalize((text or "")[-200:])
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # Fathom-Search Agent Adapter (ReCall)
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 class FathomSearchAdapter:
     def __init__(self, executor_urls: List[str]):
@@ -142,15 +142,15 @@ class FathomSearchAdapter:
         )
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # ReCall tool preset (Fathom only)
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 RECALL_ENV = "from search_api import search_urls, query_url"
 RECALL_SCHEMAS: List[Dict[str, Any]] = [
     {
         "name": "search_urls",
-        "description": "Google search and return links to web-pages with a brief snippet given a text query",
+        "description": "Google search and return links to web-pages with a brief snippet given a query",
         "parameters": {
             "type": "object",
             "properties": {"query": {"type": "string"}, "top_k": {"type": "integer", "default": 10}},
@@ -169,9 +169,9 @@ RECALL_SCHEMAS: List[Dict[str, Any]] = [
 ]
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # Summary LLM backends (OpenAI or vLLM)
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 def _openai_client():
     try:
@@ -193,9 +193,9 @@ def _call_sglang(base_url: str, system_prompt: str, user_prompt: str, *,
                  temperature: float, max_tokens: int,
                  stop: Optional[List[str]] = None, timeout: int = 400) -> str:
     """
-    Call an sglang server that exposes POST {base_url}/generate
-    with {"text": <prompt>, "sampling_params": {...}} and return the first text.
-    """
+ Call an sglang server that exposes POST {base_url}/generate
+ with {"text": <prompt>, "sampling_params": {...}} and return the first.
+ """
     if requests is None:
         raise RuntimeError("requests not installed. `pip install requests`")
 
@@ -222,7 +222,7 @@ def _call_sglang(base_url: str, system_prompt: str, user_prompt: str, *,
     # print("data", data)
 
     # sglang/vLLM usually returns {"text": "..."} or {"text": ["...", ...]}
-    txt = data.get("text")
+    txt = data.get("text") or data.get("content")
     # print("resp", txt)
     if isinstance(txt, list):
         return txt[0]
@@ -234,40 +234,40 @@ import re
 
 
 def reformat_trace(s: str) -> str:
-    """Turn ChatML-ish agent transcript into readable plain text."""
+    """Turn ChatML-ish agent transcript into readable plain."""
     if not s:
         return s
     t = s
     # Remove system prompt block completely (from <|im_start|>system to <|im_end|>)
     t = re.sub(r"<\|im_start\|>system.*?<\|im_end\|>", "", t, flags=re.DOTALL|re.IGNORECASE)
-    
+
     # Replace other speaker tokens with readable labels
     def _speaker(m: re.Match) -> str:
         role = (m.group(1) or "").strip().upper()
         return f"\n{role}:\n"
     t = re.sub(r"<\|im_start\|>(\w+)", _speaker, t, flags=re.IGNORECASE)
     t = re.sub(r"<\|im_end\|>", "\n", t, flags=re.IGNORECASE)
-    
+
     # Remove <think> tags and replace closing with newline
     t = re.sub(r"<think\s*>", "", t, flags=re.IGNORECASE)
     t = re.sub(r"</think\s*>", "\n", t, flags=re.IGNORECASE)
-    
+
     # Replace tool response tags with a clear marker
     t = re.sub(r"<tool_respon[sc]e\s*>", "SEARCH RESULT\n", t, flags=re.IGNORECASE)
     t = re.sub(r"</tool_respon[sc]e\s*>", "\n", t, flags=re.IGNORECASE)
-    
+
     # Remove tool_call tags completely
     t = re.sub(r"</?tool_call\s*>", "", t, flags=re.IGNORECASE)
-    
+
     # Remove any other ChatML tokens (like <|im_start|> and others)
     t = re.sub(r"<\|[^>]+?\|>", "", t)
-    
+
     # Remove any other remaining angle bracket tags (e.g., <something>)
     t = re.sub(r"</?[^>\n]+?>", "", t)
-    
+
     # Clean up multiple blank lines to max two
     t = re.sub(r"\n{3,}", "\n\n", t).strip()
-    
+
     return t
 
 
@@ -281,9 +281,9 @@ def _route_and_summarize(
     max_tokens: int,
 ) -> str:
     """
-    If `summary_llm` starts with 'http', treat as vLLM base_url; else treat as an OpenAI model id.
-    For vLLM, prepend [SYSTEM]/[USER] tags; for OpenAI, pass messages with system+user.
-    """
+ If `summary_llm` starts with 'http', treat as vLLM base_url; else treat as an OpenAI model id.
+ For vLLM, prepend [SYSTEM]/[USER] tags; for OpenAI, pass messages with system+user.
+ """
     if summary_llm.strip().lower().startswith("http"):
         return _call_sglang(summary_llm, system_prompt, prompt, temperature=temperature, max_tokens=max_tokens)
 
@@ -314,14 +314,14 @@ def build_summary_prompt(question: str, transcript: str, tool_calls: Any) -> str
         f"{transcript}\n\n"
         "Tool Calls (as-recorded):\n"
         f"{tool_str}\n\n"
-        "— End of trace —"
+        "- End of trace -"
     )
 
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 # Main
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Ask a single question with Fathom-Search-4B.")
@@ -337,7 +337,7 @@ def main():
                         help="If set, produce a DeepResearch-style report with the Summary LLM.")
     parser.add_argument("--summary-llm", default="gpt-4.1-mini",
                         help="Summary LLM backend: OpenAI model (e.g., gpt-4.1-mini) "
-                             "or vLLM base URL (e.g., http://YOUR_HOST:YOUR_PORT). Defaults to $SUMMARY_LLM or gpt-4.1-mini.")
+                             "or vLLM base URL (e.g., http://localhost:8000). Defaults to $SUMMARY_LLM or gpt-4.1-mini.")
     parser.add_argument("--summary-temperature", type=float, default=0.4)
     parser.add_argument("--summary-max-tokens", type=int, default=10000)
 
@@ -384,8 +384,8 @@ def main():
 
     prompt = build_summary_prompt(question, reformat_trace(transcript) or "", tool_calls)
     if args.deepresearch:
-        print("Generating Report ........")
-        system_prompt = DEEPRESEARCH_REPORT_SYS_PROMPT 
+        print("Generating Report........")
+        system_prompt = DEEPRESEARCH_REPORT_SYS_PROMPT
         try:
             resp = _route_and_summarize(
                 summary_llm=args.summary_llm,
@@ -394,9 +394,9 @@ def main():
                 temperature=args.summary_temperature,
                 max_tokens=args.summary_max_tokens,
                 )
-            
+
             report = re.split(r"</think\s*>", resp, flags=re.IGNORECASE)[-1]
-            plan = re.split(r"</think\s*>", resp, flags=re.IGNORECASE)[0]  
+            plan = re.split(r"</think\s*>", resp, flags=re.IGNORECASE)[0]
 
         except Exception as e:
             report = f"[Summary LLM error: {e}]"
@@ -404,7 +404,7 @@ def main():
         print("="*75)
         print("REPORT")
         print(report)
-      
+
 
 
 if __name__ == "__main__":

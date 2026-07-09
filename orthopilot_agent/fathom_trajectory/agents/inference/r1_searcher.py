@@ -15,7 +15,7 @@ from openai import OpenAI
 # Use environment for OpenAI API key; do NOT hard-code secrets
 client = OpenAI()  # reads OPENAI_API_KEY from env
 
-# ─────────────────────────  BASIC UTILS  ──────────────────────────────
+# ------------------------- BASIC UTILS ------------------------------
 def retry(max_attempts: int = 4, sleep: float = 1, fallback=None):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -30,12 +30,12 @@ def retry(max_attempts: int = 4, sleep: float = 1, fallback=None):
     return decorator
 
 
-# ──────────────────────────  CONFIG  ──────────────────────────────────
+# -------------------------- CONFIG ----------------------------------
 @dataclass
 class R1SearchConfig:
     # Serper.dev parameters
     serper_api_key: str = os.getenv("SERPER_API_KEY", "")
-    serper_url: str = "https://YOUR_SEARCH_API_URL"
+    serper_url: str = "https://google.serper.dev/search"
     gl: str = "us"
     hl: str = "en"
 
@@ -48,25 +48,25 @@ class R1SearchConfig:
     summariser_model: str = "gpt-4o-mini"
 
 
-# ─────────────────────────  R1-Searcher  ──────────────────────────────
+# ------------------------- R1-Searcher ------------------------------
 class R1Searcher:
     SYSTEM_PROMPT = """
-    You are a helpful assistant.
-    Given a question, you should answer it by first thinking about the reasoning
-    process in the mind and then providing the final answer.
+ You are a helpful assistant.
+ Given a question, you should answer it by first thinking about the reasoning
+ process in the mind and then providing the final answer.
 
-    The output format of reasoning process and final answer are enclosed within
-    <think> </think> and <answer> </answer> tags, respectively, i.e.,
-    "<think> reasoning process here </think>
+ The output format of reasoning process and final answer are enclosed within
+ <think> </think> and <answer> </answer> tags, respectively, i.e.,
+ "<think> reasoning process here </think>
 
-    <answer> final answer here </answer>".
+ <answer> final answer here </answer>".
 
-    During the thinking process, you can perform searching with exactly one single-triple query:
-    "<|begin_of_query|> keyword_1 keyword_2 ... <|end_of_query|>".
+ During the thinking process, you can perform searching with exactly one single-triple query:
+ "<|begin_of_query|> keyword_1 keyword_2... <|end_of_query|>".
 
-    The system will then provide:
-    "<|begin_of_documents|> ...search results... <|end_of_documents|>".
-    """.strip()
+ The system will then provide:
+ "<|begin_of_documents|>...search results... <|end_of_documents|>".
+ """.strip()
 
     SUMMARY_PROMPT = (
         "## Task Description:\n"
@@ -115,7 +115,7 @@ class R1Searcher:
         sess.headers.update({"User-Agent": "r1-searcher-bot/1.0"})
         self._wiki._http = sess
 
-    # ── public entry ─────────────────────────────────────────────────
+    # -- public entry -------------------------------------------------
     def run(self, question: str, tokenizer=None) -> tuple[str, List[str]]:
         """tokenizer is optional; if provided, used only to budget tokens."""
         self.tokenizer = tokenizer  # <-- accept tokenizer from harness (optional)
@@ -126,7 +126,7 @@ class R1Searcher:
             f"<|im_start|>assistant\n{self.THINK_OPEN}"
         )
         queries: List[str] = []
-    
+
 
         for i in range(self.cfg.max_rounds):
             model_out = self._call_thinker(prompt, tokenizer)
@@ -153,7 +153,7 @@ class R1Searcher:
 
         return prompt, queries
 
-    # ── thinker call ────────────────────────────────────────────────
+    # -- thinker call ------------------------------------------------
     def _call_thinker(self, prompt: str, tokenizer) -> str:
         # If we have a tokenizer, try to budget tokens. Otherwise use a safe cap.
         if self.tokenizer is not None:
@@ -178,14 +178,14 @@ class R1Searcher:
             },
             timeout=60,
         ).json()
-        generated = resp["text"]                       # what you have now
+        generated = resp.get("text") or resp.get("content", "")                       # what you have now
         matched   = resp["meta_info"]["finish_reason"].get("matched")
         reason = resp["meta_info"]["finish_reason"].get("type")
         #print("-"*100)
         #print(resp)
         #print(matched)
         #print("-"*100)
-        # ⇢ append the tag back only if it was removed
+        # -> append the tag back only if it was removed
         if reason == "stop" and matched in self.STOP_TOKENS:
             if not "<|end_of_query|>" in generated:
                 generated += matched + self.EOS_TOKEN
@@ -196,10 +196,10 @@ class R1Searcher:
              if not generated.endswith("<|endoftext|>"):
                 generated += "<|endoftext|>"
         return generated
-        # Do NOT try to “repair” stop tokens by IDs; keep it simple and robust.
+        # Do NOT try to "repair" stop tokens by IDs; keep it simple and robust.
         return generated
 
-    # ── query helpers ───────────────────────────────────────────────
+    # -- query helpers -----------------------------------------------
     @staticmethod
     def _extract_query(text: str) -> Optional[str]:
         if R1Searcher.Q_OPEN not in text or R1Searcher.Q_CLOSE not in text:
@@ -210,11 +210,11 @@ class R1Searcher:
             fragment.replace("\t", " ")
             .replace('"', "")
             .replace("'", "")
-            .replace("…", "")
+            .replace("...", "")
             .strip()
         ) or None
 
-    # ── retrieval & summary ─────────────────────────────────────────
+    # -- retrieval & summary -----------------------------------------
     def _retrieve_block(self, query: str) -> str:
         wiki_links = self._serper_wiki_links(query)
         for url in wiki_links[:3]:
@@ -278,7 +278,7 @@ class R1Searcher:
         return text.split("[Exacted Content]:")[-1].strip()
 
 
-# ───────────────────────────  CLI (optional)  ─────────────────────────
+# --------------------------- CLI (optional) -------------------------
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()

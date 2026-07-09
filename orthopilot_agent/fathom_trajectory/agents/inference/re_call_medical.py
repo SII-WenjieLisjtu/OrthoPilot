@@ -9,9 +9,9 @@ from datetime import datetime
 
 def retry(max: int = 10, sleep: int = 1, fallback=None):
     """
-    Retry `max` times and, if still failing, return `fallback`
-    instead of raising.  This keeps outer loops alive.
-    """
+ Retry `max` times and, if still failing, return `fallback`
+ instead of raising. This keeps outer loops alive.
+ """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -21,8 +21,8 @@ def retry(max: int = 10, sleep: int = 1, fallback=None):
                 except Exception as e:
                     print(f"[retry] attempt {i+1}/{max} failed: {e}")
                     if i == max - 1:                 # last try exhausted
-                        print(f"[retry] giving up – returning {fallback!r}")
-                        return fallback              # ← swallow the error
+                        print(f"[retry] giving up - returning {fallback!r}")
+                        return fallback              # <- swallow the error
                     if sleep:
                         time.sleep(sleep)
         return wrapper
@@ -31,47 +31,47 @@ def retry(max: int = 10, sleep: int = 1, fallback=None):
 
 class ReCallMedical():
     """
-    Medical domain version of ReCall with search limit (max 5 searches).
-    Generates trajectory with search tool calls and responses for medical diagnosis.
-    """
+ Medical domain version of ReCall with search limit (max 5 searches).
+ Generates trajectory with search tool calls and responses for medical diagnosis.
+ """
 
     sys_prompt = """
-    你是骨科住院医生助手。你的任务是根据患者信息进行诊断分析。
-    在此环境中,你可以使用一系列工具来辅助诊断。
+ yes clinician.taskyespatient.
+,.
 
-    你可以进行多轮函数调用。在每一轮中,你可以调用一个或多个函数。
+.,.
 
-    遵循以下原则:
+:
 
-    1. 基于证据的诊断: 通过调用工具收集证据,探索关键要点,直至具备充分依据。
-    2. 反复验证: 在给出最终诊断前,进行交叉检查与核实。
-    3. 关注细节: 确保来源可信、信息相关且时效正确。
+ 1.:,,.
+ 2.:,.
+ 3.:,.
 
-    可用函数的JSONSchema格式如下:\n```json\n{func_schemas}\n```
+ JSONSchema:\n```json\n{func_schemas}\n```
 
-    在调用医学知识图谱相关工具时，请遵循以下流程：
-    1. 必须首先使用 kg_get_relations工具确认医学实体在图谱中是否存在，并获取其可用关系类型；
-    2. 若实体不存在或不确定，请调用 kg_fuzzy_search工具获取相似医学实体，并基于返回结果选择合适的标准实体名称；
-    3. 仅对已经在图谱中确认存在的实体及其可用关系，调用 kg_search(entity, relation) 或 kg_search(entity) 获取对应的知识内容，避免直接对原始用户输入进行盲目检索。
-    4. 若使用知识图谱，必须使用kg_search工具。
-    
-    在你的回答中,先在<think></think>中进行推理; 如需信息,在<tool_call></tool_call>中给出函数与参数;
-    函数执行结果会返回,你可继续调用,直到获得最终答案; 若已具备答案,请仅将结果置于<answer></answer>中。
+,:
+ 1. kg_get_relations returns yes or no when applicable.
+ 2. does not exist, kg_fuzzy_search, resultchoice;
+ 3., kg_search(entity, relation) kg_search(entity) content, input.
+ 4., textkg_search.
 
-    例如: <think> 根据函数调用的响应,我获得了诊断依据。 </think> <answer>入院诊断:老年性髋关节病。</answer>
+,<think></think>;,<tool_call></tool_call>;
+ result,,answer; answer,result<answer></answer>.
 
-    对每个函数调用,在<tool_call></tool_call>标签内返回一个JSON对象:
-    <tool_call>
-    {{"name": <function-name>, "arguments": <args-json-object>}}
-    </tool_call>
-    """
+: <think>,. </think> <answer>:.</answer>
+
+,<tool_call></tool_call>JSON:
+ <tool_call>
+ {{"name": <function-name>, "arguments": <args-json-object>}}
+ </tool_call>
+ """
 
 
     def __init__(self, executor_url, max_searches: int = 5, sys_prompt: str | None = None, teacher_hint: str | None = None, suppress_logs: bool = True):
         self.executor_url = executor_url
         self.max_searches = max_searches
         self.search_count = 0
-        # 可覆盖system提示; 可追加教师提示
+        # system;
         base = sys_prompt if sys_prompt is not None else self.sys_prompt
         if teacher_hint:
             base = base + "\n\n[TEACHER_HINT] " + teacher_hint
@@ -88,7 +88,7 @@ class ReCallMedical():
 
     def _strip_old_tool_responses(self, prompt: str) -> str:
         TOOL_RESPONSE_RE = re.compile(r"<tool_response>.*?</tool_response>\s*", re.DOTALL)
-        """Remove every existing <tool_response> … </tool_response> block."""
+        """Remove every existing <tool_response> ... </tool_response> block."""
         return TOOL_RESPONSE_RE.sub("", prompt)
 
     def cat_assistant_response(self, curr_prompt, assistant_response):
@@ -130,7 +130,7 @@ class ReCallMedical():
             if self.is_search_call(call_str):
                 self.search_count += 1
                 if self.search_count > self.max_searches:
-                    return f"error: 已达到最大搜索次数限制({self.max_searches}次),无法执行更多搜索操作"
+                    return f"error: ({self.max_searches}),"
                 print(f"[Search {self.search_count}/{self.max_searches}] Executing: {call_str}")
 
             if call_str.startswith("error: parse tool call failed"):
@@ -207,18 +207,18 @@ class ReCallMedical():
         func_schemas: str,
         question: str,
         tokenizer,
-        model_url="http://YOUR_HOST:YOUR_PORT",
+        model_url="http://localhost:8000",
         temperature: float = 0.0,
         max_new_tokens: int = 40960,
         ) -> Tuple[str, List[str], List[Dict[str, Any]]]:
         """
-        Run the agent and return (transcript, all_tool_calls, trajectory).
+ Run the agent and return (transcript, all_tool_calls, trajectory).
 
-        Returns:
-            - transcript: Full conversation transcript
-            - all_tool_calls: List of all tool calls made
-            - trajectory: List of trajectory steps with role, content, and tool info
-        """
+ Returns:
+ - transcript: Full conversation transcript
+ - all_tool_calls: List of all tool calls made
+ - trajectory: List of trajectory steps with role, content, and tool info
+ """
         curr_prompt = self.init_prompt(func_schemas, question)
         all_tool_calls = []
         trajectory = []
@@ -226,7 +226,7 @@ class ReCallMedical():
         # Add system message to trajectory
         trajectory.append({
             "role": "system",
-            "content": "你是骨科住院医生,遵循\"问题→登记工具(不立取)→(下一条user)返回工具结果→回答本问\"的节律。工具只为【上一条用户问题】服务;若检索不到精确检查/检验,环境会返回已实际完成的最相近项目与结果并说明差异。检验/检查工具均支持两种入参:time_range 或 items。回答尽量基于证据;证据不足时明确指出所需检查。"
+            "content": "yes clinician,\"->()->(user)result->\".[];/,result./:time_range items.;."
         })
 
         # Add initial user question to trajectory
@@ -253,25 +253,25 @@ class ReCallMedical():
             ).json()
             if not self.suppress_logs:
                 print("="*100)
-                print(f"Thinking .... (Iteration {i+1})")
-                print("<think>"+response['text'])
+                print(f"Thinking.... (Iteration {i+1})")
+                print("<think>"+response.get('text') or response.get('content', ''))
                 print("="*100)
 
             if "error" in response.keys():
                 print("resp",response)
-            curr_prompt = self.cat_assistant_response(curr_prompt, response['text'])
+            curr_prompt = self.cat_assistant_response(curr_prompt, response.get('text') or response.get('content', ''))
 
-            tool_calls: List[str] = self.extract_tool_calls(response['text'])
-            final_answer = self.extract_answer(response['text'])
+            tool_calls: List[str] = self.extract_tool_calls(response.get('text') or response.get('content', ''))
+            final_answer = self.extract_answer(response.get('text') or response.get('content', ''))
 
             # Add GPT response to trajectory
-            gpt_content = response['text']
+            gpt_content = response.get('text') or response.get('content', '')
             trajectory.append({
                 "role": "gpt",
                 "content": gpt_content
             })
 
-            # 若已给出<answer>，立即停止后续搜索
+            # <answer>,
             if final_answer:
                 break
 

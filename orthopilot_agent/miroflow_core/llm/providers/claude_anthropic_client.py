@@ -14,9 +14,9 @@ from anthropic import (
 from omegaconf import DictConfig
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from src.llm.provider_client_base import LLMProviderClientBase
+from orthopilot_agent.miroflow_core.llm.provider_client_base import LLMProviderClientBase
 
-from src.logging.logger import bootstrap_logger
+from orthopilot_agent.miroflow_core.logging.logger import bootstrap_logger
 
 LOGGER_LEVEL = os.getenv("LOGGER_LEVEL", "INFO")
 logger = bootstrap_logger(level=LOGGER_LEVEL)
@@ -53,11 +53,11 @@ class ClaudeAnthropicClient(LLMProviderClientBase):
         keep_tool_result: int = -1,
     ):
         """
-        Send message to Anthropic API.
-        :param system_prompt: System prompt string.
-        :param messages: Message history list.
-        :return: Anthropic API response object or None (if error).
-        """
+ Send message to Anthropic API.
+:param system_prompt: System prompt string.
+:param messages: Message history list.
+:return: Anthropic API response object or None (if error).
+ """
         logger.debug(f" Calling LLM ({'async' if self.async_client else 'sync'})")
 
         messages_copy = self._remove_tool_result_from_messages(
@@ -150,9 +150,9 @@ class ClaudeAnthropicClient(LLMProviderClientBase):
 
     def extract_tool_calls_info(self, llm_response, assistant_response_text):
         """Extract tool call information from Anthropic LLM response"""
-        from src.utils.parsing_utils import parse_llm_response_for_tool_calls
+        from orthopilot_agent.miroflow_core.utils.parsing_utils import parse_llm_response_for_tool_calls
 
-        # For Anthropic, parse tool calls from the response text
+        # For Anthropic, parse tool calls from the response
         return parse_llm_response_for_tool_calls(assistant_response_text)
 
     def update_message_history(
@@ -218,7 +218,7 @@ class ClaudeAnthropicClient(LLMProviderClientBase):
         user_turns_processed = 0
         for turn in reversed(messages):
             if turn["role"] == "user" and user_turns_processed < 1:
-                # Add ephemeral cache control to the text part of the last user message
+                # Add ephemeral cache control to the part of the last user message
                 new_content = []
                 processed_text = False
                 # Check if content is a list
@@ -241,7 +241,7 @@ class ClaudeAnthropicClient(LLMProviderClientBase):
                             new_content.append(item.copy())
                     cached_messages.append({"role": "user", "content": new_content})
                 else:
-                    # If content is not a list (e.g., plain text), add as is without cache control
+                    # If content is not a list (e.g., plain), add as is without cache control
                     # Or adjust logic as needed
                     logger.debug(
                         "Warning: User message content is not in expected list format, cache control not applied."

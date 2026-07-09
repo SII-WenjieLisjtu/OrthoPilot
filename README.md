@@ -2,63 +2,69 @@
 
 **Evidence-grounded AI for longitudinal clinical management in musculoskeletal care**
 
-This repository contains source code, prompts, configuration templates and analysis scripts accompanying the manuscript **"Evidence-grounded AI for longitudinal clinical management in musculoskeletal care"**.
+This repository contains the public source release for OrthoPilot, a research agent system for full-pathway musculoskeletal care. The release includes the agent runtime, Tool Plaza interface templates, CHEESE training and inference code, ORACLE evaluation framework code, prompt templates and a deterministic synthetic demo.
 
-OrthoPilot is a clinical agent system for full-pathway musculoskeletal care. It combines the CHEESE reasoning backbone, Tool Plaza evidence interfaces, OrthoBench benchmark utilities and ORACLE open-response evaluation scripts.
+The repository is intended for code review, method inspection and lightweight execution checks. It is not a complete reproduction package for manuscript results. Patient-derived data, model weights, retrieval indexes, private service endpoints and paper-result artifact builders are not included.
 
-This public release is intended for code review, method inspection and lightweight demonstration. It does not include patient-level records, model weights, retrieval indexes or private hospital deployment assets.
+## Public release scope
+
+Included in this release:
+
+- OrthoPilot agent runtime and configuration templates.
+- Tool Plaza MCP-style interface templates.
+- CHEESE training and inference scripts.
+- ORACLE framework code for open-response evaluation.
+- Prompt templates used by the agent and evaluation workflows.
+- A deterministic synthetic demo that runs without private data or model access.
+
+Excluded from this release:
+
+- patient-level clinical records and patient-derived evaluation datasets;
+- model weights, checkpoints, LoRA adapters and retrieval indexes;
+- private hospital services, credentials, API keys and deployment endpoints;
+- manuscript analysis scripts and plotting code;
+- figure generation, table export, reader-study case selection, benchmark data construction, calibration scripts and paper-result artifact builders;
+- large generated outputs, caches and logs.
 
 ## Repository contents
 
-```text
+```
 orthopilot/
-├── README.md                         # This file
-├── LICENSE                           # Apache License 2.0
-├── CITATION.cff                      # Citation metadata
-├── requirements.txt                  # Minimal Python dependencies
-├── demo/                             # Deterministic synthetic demo
-├── docs/                             # Code availability and reproduction notes
-│   ├── code_availability.md
-│   ├── reproduction_map.md
-│   └── methods/
-├── orthopilot_agent/                 # Agent runtime, configs and trajectory code
-│   ├── miroflow_core/
-│   ├── configs/
-│   ├── skills/
-│   └── fathom_trajectory/
-├── tool_plaza/                       # Tool Plaza interfaces and MCP-style servers
-│   ├── mcp_servers/
-│   ├── tool_configs/
-│   └── bone_tools_api/
-├── cheese/                           # CHEESE training, inference and evaluation scripts
-├── oracle/                           # ORACLE open-response evaluation framework
-├── orthobench/                       # OrthoBench construction and visualization scripts
-├── analyses/                         # Manuscript analysis scripts
-└── prompts/                          # Agent, tool-use and evaluation prompts
+|-- README.md
+|-- LICENSE
+|-- CITATION.cff
+|-- requirements.txt
+|-- demo/
+|-- docs/
+|-- orthopilot_agent/
+|-- tool_plaza/
+|-- cheese/
+|-- oracle/
+`-- prompts/
 ```
 
 ## System requirements
 
 ### Tested environment
 
-The lightweight demo and repository checks were tested on:
+The synthetic demo and repository checks were tested on:
 
 - Operating system: Linux 5.15
 - Python: 3.12.4
-- Conda: optional; any clean conda or virtualenv environment with Python 3.12 is suitable
-- Hardware for demo: standard CPU environment. No GPU is required for the deterministic demo.
+- Conda: optional. Any clean conda or virtualenv environment with Python 3.12 is suitable.
+- Hardware for demo: standard CPU environment. No GPU is required.
 
 ### Optional hardware
 
-Full CHEESE training, model inference, vLLM serving and large-scale evaluation require GPU infrastructure and model checkpoints that are not included in this public release. The exact hardware requirements depend on the selected model endpoint and batch size.
+Full CHEESE training, model inference, vLLM serving and large-scale evaluation require GPU infrastructure and model checkpoints that are not included in this public release. Hardware requirements depend on the selected model endpoint, checkpoint size and batch size.
 
 ## Installation
 
 Create a clean Python environment and install the minimal dependencies:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+python -m venv.venv
+source.venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -70,25 +76,21 @@ conda activate orthopilot-demo
 pip install -r requirements.txt
 ```
 
-Typical installation time on a normal desktop or workstation is 5 to 15 minutes, depending on network speed and whether PyTorch wheels are already cached.
+Typical installation time on a normal desktop or workstation is 5 to 15 minutes, depending on network speed and cached packages.
 
-The root `requirements.txt` is intended for the lightweight demo, code inspection and most analysis scripts. Some components have additional optional dependencies and should be installed only when needed.
+The root `requirements.txt` is intended for the synthetic demo and lightweight source inspection. Install component-specific dependencies only for the workflow you need to inspect or run.
 
 ## Component-specific dependencies
 
 | Component | Path | Main dependencies | Notes |
 | --- | --- | --- | --- |
 | Synthetic demo | `demo/` | Python standard library only | Runs on CPU. It does not require model weights, private APIs or hospital services. |
-| Paper analyses and OrthoBench utilities | `analyses/`, `orthobench/` | `numpy`, `pandas`, `scipy`, `scikit-learn`, `matplotlib`, `seaborn`, `plotly`, `statsmodels` | Source tables are controlled-access and are not included in this public release. |
-| ORACLE evaluation | `oracle/` | `openai`, `httpx`, `pydantic`, `pandas`, `tqdm` | Requires evaluator model access and prepared response/rubric files. |
-| CHEESE inference and evaluation | `cheese/inference/`, `cheese/evaluation/` | `torch`, `transformers`, `datasets`, `accelerate`, `openai`, `requests` | Can use local checkpoints or an OpenAI-compatible endpoint. Model weights are not included. |
-| CHEESE training and distillation | `cheese/training/`, `cheese/distillation/` | PyTorch, Transformers, LLaMA-Factory or VERL-style training stacks | Requires GPU infrastructure, training data and checkpoints. Install according to the selected training backend. |
-| Tool Plaza MCP servers | `tool_plaza/mcp_servers/` | `fastapi`, `uvicorn`, `pydantic`, `requests`, `httpx`, `openai`; optional tool-specific packages | Server templates are provided. Site-specific services and credentials must be configured locally. |
-| Bone tools API | `tool_plaza/bone_tools_api/` | See `tool_plaza/bone_tools_api/requirements.txt` | Includes FastAPI, multipart upload support, HTTP clients, data processing packages and optional embedding dependencies such as `FlagEmbedding`. |
-| Trajectory generation utilities | `orthopilot_agent/fathom_trajectory/` | See `orthopilot_agent/fathom_trajectory/requirements.txt` | This is an optional heavy environment for trajectory generation and search-based workflows. It may require CUDA, browser automation, SGLang or other serving packages. It is not required for the demo. |
-| OrthoPilot agent runtime | `orthopilot_agent/miroflow_core/` | `mcp`, `openai` or compatible LLM clients, `pydantic`, `pyyaml`, `httpx` | Requires configured model endpoints and Tool Plaza services for full agent execution. |
+| OrthoPilot agent runtime | `orthopilot_agent/` | `mcp`, OpenAI-compatible LLM clients, `pydantic`, `pyyaml`, `httpx` | Requires configured model endpoints and Tool Plaza services for full agent execution. |
+| Tool Plaza interfaces | `tool_plaza/` | `fastapi`, `uvicorn`, `pydantic`, `requests`, `httpx`, `openai`; optional tool-specific packages | Interface templates are provided. Site-specific services and credentials must be configured locally. |
+| CHEESE training and inference | `cheese/` | `torch`, `transformers`, `datasets`, `accelerate`, `openai`, `requests`; training backends as needed | Requires local checkpoints or an OpenAI-compatible endpoint. Model weights and training data are not included. |
+| ORACLE framework | `oracle/` | `openai`, `httpx`, `pydantic`, `pandas`, `tqdm` | Requires evaluator model access and controlled response/rubric files that are not included. |
 
-For reviewer installation, start with the root `requirements.txt` and the deterministic demo. Install component-specific dependencies only for the workflow you need to run.
+For reviewer installation, start with the root `requirements.txt` and the deterministic demo. Install component-specific dependencies only when needed.
 
 ## Demo
 
@@ -98,8 +100,8 @@ Run from the repository root:
 
 ```bash
 python demo/run_demo.py \
-  --input demo/synthetic_case.json \
-  --output demo_output.json
+ --input demo/synthetic_case.json \
+ --output demo_output.json
 ```
 
 Expected runtime is less than one minute on a normal CPU. The generated JSON should match `demo/expected_output.json` except for formatting.
@@ -112,47 +114,43 @@ The demo loads a synthetic musculoskeletal case, collects simulated evidence fie
 
 ```bash
 python cheese/inference/inference_local.py \
-  --input_file /path/to/input.jsonl \
-  --output_file /path/to/output.jsonl \
-  --model_name /path/to/model-or-endpoint
+ --input_file data/input.jsonl \
+ --output_file outputs/output.jsonl \
+ --model_name checkpoints/model-or-endpoint
 ```
 
 Update model paths or endpoint settings before use. API keys should be provided through environment variables and should not be committed.
 
-### Inspect ORACLE evaluation code
+### Inspect ORACLE evaluation framework code
 
 ```bash
 cd oracle/scripts
 python task_all_gen_async.py --help
 ```
 
-ORACLE scoring of open-ended clinical management responses requires rubric files, model access and response files prepared according to the manuscript methods.
+ORACLE scoring of open-ended clinical management responses requires rubric files, model access and response files prepared according to the method description. These controlled inputs are not included in the public release.
 
-### Configure Tool Plaza servers
+### Configure Tool Plaza interfaces
 
-Tool Plaza server templates are located in `tool_plaza/tool_configs/`. They point to canonical MCP-style server modules in `tool_plaza/mcp_servers/`.
+Tool Plaza templates are located in `tool_plaza/`. Replace site-specific values locally:
 
-Site-specific values should be replaced locally:
-
-```text
-YOUR_API_KEY
-YOUR_API_BASE_URL
-YOUR_HOST
-YOUR_PORT
-/path/to/model
-/path/to/input.jsonl
-/path/to/output.jsonl
+```
+OPENAI_API_KEY
+https://api.openai.com/v1
+localhost
+8000
+checkpoints/model
+data/input.jsonl
+outputs/output.jsonl
 ```
 
-### Run OrthoBench and analysis scripts
-
-OrthoBench utilities are in `orthobench/`. Manuscript analysis scripts are in `analyses/`. These scripts require source data tables that are controlled-access and are not included in this public repository.
+Never commit credentials, hospital endpoints or patient-derived files.
 
 ## Reproducing manuscript results
 
-A code-to-manuscript map is provided in `docs/reproduction_map.md`.
+A code-to-component map is provided in `docs/reproduction_map.md`.
 
-Exact reproduction of quantitative manuscript results requires controlled clinical datasets, model checkpoints, retrieval indexes and deployment infrastructure described in the paper. These assets are excluded from this release because they contain patient-derived data or institution-specific resources.
+The public release supports method inspection and execution of the synthetic demo. Exact reproduction of quantitative manuscript results requires controlled clinical datasets, model checkpoints, retrieval indexes, evaluation rubrics and deployment infrastructure described in the manuscript. These assets are excluded because they contain patient-derived data or institution-specific resources.
 
 ## Data availability and privacy
 
@@ -163,7 +161,7 @@ This repository intentionally excludes:
 - model weights, checkpoints and LoRA adapters;
 - retrieval indexes, vector databases and local cache files;
 - hospital-specific deployment secrets, API keys and private endpoints;
-- large third-party dependency repositories.
+- manuscript analysis outputs, generated figures and exported tables.
 
 The included demo data are synthetic and do not correspond to any real patient.
 

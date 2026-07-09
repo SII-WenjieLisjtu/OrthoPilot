@@ -4,17 +4,17 @@ This directory contains OrthoPilot-specific utilities for generating, compressin
 
 ## Contents
 
-```text
+```
 fathom_trajectory/
-├── eval_nosearch.py                  # Evaluation without external search trajectories
-├── eval_search.py                    # Evaluation with search trajectories
-├── inference.py                      # Trajectory inference entry point
-├── prompts.py                        # Prompt templates for trajectory construction
-├── requirements.txt                  # Optional trajectory-generation dependencies
-├── agents/                           # Lightweight agent wrappers
-├── eval_datasets/                    # Dataset schema notes and placeholders
-├── ortho_agent_trajectory/           # Medical trajectory generation and enhancement
-└── serving/                          # Minimal serving utilities retained for reference
+|-- eval_nosearch.py # Evaluation without external search trajectories
+|-- eval_search.py # Evaluation with search trajectories
+|-- inference.py # Trajectory inference entry point
+|-- prompts.py # Prompt templates for trajectory construction
+|-- requirements.txt # Optional trajectory-generation dependencies
+|-- agents/ # Lightweight agent wrappers
+|-- eval_datasets/ # Dataset schema notes and placeholders
+|-- ortho_agent_trajectory/ # Medical trajectory generation and enhancement
+`-- serving/ # Minimal serving utilities retained for reference
 ```
 
 ## Notes

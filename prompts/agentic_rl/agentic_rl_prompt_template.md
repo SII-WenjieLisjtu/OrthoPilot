@@ -20,43 +20,43 @@ The available functions are provided as JSONSchema objects. Representative examp
 
 ```json
 [
-  {
-    "name": "search_guidelines",
-    "description": "Search clinical guidelines and literature evidence relevant to the diagnostic question.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "Search keywords or a concise clinical question."
-        },
-        "domain": {
-          "type": "string",
-          "description": "Clinical specialty, such as orthopedics."
-        }
-      },
-      "required": ["query"]
-    }
-  },
-  {
-    "name": "kg_search",
-    "description": "Query a medical knowledge graph for structured information about a medical entity.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "entity": {
-          "type": "string",
-          "description": "The standard medical entity name."
-        },
-        "relation": {
-          "type": "string",
-          "description": "Optional relation filter."
-        }
-      },
-      "required": ["entity"]
-    }
-  },
-  ...
+ {
+ "name": "search_guidelines",
+ "description": "Search clinical guidelines and literature evidence relevant to the diagnostic question.",
+ "parameters": {
+ "type": "object",
+ "properties": {
+ "query": {
+ "type": "string",
+ "description": "Search keywords or a concise clinical question."
+ },
+ "domain": {
+ "type": "string",
+ "description": "Clinical specialty, such as orthopedics."
+ }
+ },
+ "required": ["query"]
+ }
+ },
+ {
+ "name": "kg_search",
+ "description": "Query a medical knowledge graph for structured information about a medical entity.",
+ "parameters": {
+ "type": "object",
+ "properties": {
+ "entity": {
+ "type": "string",
+ "description": "The standard medical entity name."
+ },
+ "relation": {
+ "type": "string",
+ "description": "Optional relation filter."
+ }
+ },
+ "required": ["entity"]
+ }
+ },
+...
 ]
 ```
 
@@ -90,7 +90,7 @@ Do not emit any other content outside these structures.
 
 - Keep the content concise.
 - Summarize the evidence state and next decision.
-- Do not reproduce raw source text or raw tool output.
+- Do not reproduce raw source or raw tool output.
 - Do not include angle brackets inside the `<think>` content.
 
 ## Rules for `<tool_call>`

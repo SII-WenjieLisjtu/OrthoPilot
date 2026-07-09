@@ -4,11 +4,11 @@ version: 1.0.0
 description: A professional skill that assists clinicians with disease diagnosis using knowledge graph and literature retrieval.
 author: MiroFlow Team
 category: Diagnosis
-icon: 🩺
+icon: medical
 dependencies:
-  tools:
-    - tool-knowledge-graph@^1.0.0
-    - tool-medrag@^2.0.0
+ tools:
+ - tool-knowledge-graph@^1.0.0
+ - tool-medrag@^2.0.0
 ---
 
 # Medical Diagnosis Assistant

@@ -1,13 +1,13 @@
 # """
 # Jina AI powered web-page fetcher.
 
-# Provides `fetch_jina(url: str) -> str` which returns a **plain-text or markdown** body
+# Provides `fetch_jina(url: str) -> str` which returns a **plain- or markdown** body
 # prefixed with `[Retrieved from Jina AI]` so callers can recognise the source.
-# If the Jina endpoint cannot return usable text (HTTP error, short / empty body, etc.)
-# this function raises an Exception – letting the orchestrator fall back to other
+# If the Jina endpoint cannot return usable (HTTP error, short / empty body, etc.)
+# this function raises an Exception - letting the orchestrator fall back to other
 # fetchers.
 
-# The implementation is **stateless** and thread-safe – no global mutable state is
+# The implementation is **stateless** and thread-safe - no global mutable state is
 # kept apart from the shared requests session from `config` (mirroring the rest of
 # the code-base).
 # """
@@ -18,36 +18,36 @@
 # import os
 # import urllib.parse as _u
 
-# from config import CFG, _SESS  # shared requests session and config
+# from config import CFG, _SESS # shared requests session and config
 # from web_helpers import retry
 
-# _JINA_ENDPOINT = "https://YOUR_READER_API_URL"  # Note: will prepend http:// when formatting
+# _JINA_ENDPOINT = "https://r.jina.ai/http://" # Note: will prepend http:// when formatting
 
 
 # @retry
 # def fetch_jina(url: str) -> str:
-#     """Return article text extracted by **Jina AI Read API**.
+# """Return article extracted by **Jina AI Read API**.
 
-#     Raises:
-#         RuntimeError – if the endpoint does not yield usable text
-#     """
-#     api_url = _JINA_ENDPOINT.format(url=url)
-#     headers = {
-#         "Authorization": f"Bearer {CFG.jina_key}"
-#     }
-#     logging.debug("Jina fetch → %s", api_url)
- 
-#     # Make request
-#     r = _SESS.get(api_url, headers=headers, timeout=(CFG.connect_to, CFG.read_to))
-#     r.raise_for_status()
+# Raises:
+# RuntimeError - if the endpoint does not yield usable
+# """
+# api_url = _JINA_ENDPOINT.format(url=url)
+# headers = {
+# "Authorization": f"Bearer {CFG.jina_key}"
+# }
+# logging.debug("Jina fetch -> %s", api_url)
 
-#     txt = r.text.strip()
+# # Make request
+# r = _SESS.get(api_url, headers=headers, timeout=(CFG.connect_to, CFG.read_to))
+# r.raise_for_status()
 
-#     # Treat short or errorful body as failure
-#     if len(txt) < 200 and any(err in txt.lower() for err in ["403", "forbidden", "error"]):
-#         raise RuntimeError("Jina AI returned no content")
+# txt = r..strip()
 
-#     return "[Retrieved from Jina AI] " + txt[: CFG.text_cap]
+# # Treat short or errorful body as failure
+# if len(txt) < 200 and any(err in txt.lower() for err in ["403", "forbidden", "error"]):
+# raise RuntimeError("Jina AI returned no content")
+
+# return "[Retrieved from Jina AI] " + txt[: CFG.text_cap]
 
 """
 Jina AI powered web-page fetcher with URL-based disk cache.
@@ -69,7 +69,7 @@ from typing import Tuple
 from config import CFG, _SESS  # shared requests session and config
 from web_helpers import retry
 
-_JINA_ENDPOINT = "https://YOUR_READER_API_URL"  # expects a fully-qualified, url-encoded target
+_JINA_ENDPOINT = "https://r.jina.ai/http://"  # expects a fully-qualified, url-encoded target
 
 
 def _canonicalize_url(url: str) -> str:
@@ -117,24 +117,24 @@ def _save_to_cache(cpath: str, body: str) -> None:
 
 @retry
 def fetch_jina(url: str) -> str:
-    """Return article text extracted by **Jina AI Read API** with disk cache.
+    """Return article extracted by **Jina AI Read API** with disk cache.
 
-    Raises:
-        RuntimeError – if the endpoint does not yield usable text
-    """
+ Raises:
+ RuntimeError - if the endpoint does not yield usable
+ """
     nurl = _canonicalize_url(url)
     cache_dir, cpath = _cache_paths(nurl)
 
     # 1) Try cache
     cached = _load_from_cache(cpath)
     if cached:
-        logging.info("Jina fetch (cache hit) ← %s", nurl)
+        logging.info("Jina fetch (cache hit) <- %s", nurl)
         return "[Retrieved from Jina AI] " + cached[: CFG.text_cap]
 
     # 2) Fetch from Jina
     api_url = _JINA_ENDPOINT.format(url=_u.quote(nurl, safe=""))
     headers = {"Authorization": f"Bearer {CFG.jina_key}"}
-    logging.debug("Jina fetch (cache miss) → %s", api_url)
+    logging.debug("Jina fetch (cache miss) -> %s", api_url)
 
     r = _SESS.get(api_url, headers=headers, timeout=(CFG.connect_to, CFG.read_to))
     r.raise_for_status()
