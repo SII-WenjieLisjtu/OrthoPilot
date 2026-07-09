@@ -60,12 +60,17 @@ Full CHEESE training, model inference, vLLM serving and large-scale evaluation r
 
 ## Installation
 
-Create a clean Python environment and install the minimal dependencies:
+Use a clean Python 3.12 environment. The public release is organized into installation profiles so reviewers can run the synthetic demos without installing private-service or large-model dependencies.
+
+### Minimal reviewer installation
+
+Use this profile for source inspection, the deterministic demo and the ReAct-style synthetic demo without model access. These demo paths use the Python standard library.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python demo/run_demo.py --input demo/synthetic_case.json --output demo_output.json
+python demo/run_react_agent_demo.py --input demo/react_case.json --output react_demo_output.json
 ```
 
 Alternatively, with conda:
@@ -73,24 +78,77 @@ Alternatively, with conda:
 ```bash
 conda create -n orthopilot-demo python=3.12 -y
 conda activate orthopilot-demo
-pip install -r requirements.txt
+python demo/run_demo.py --input demo/synthetic_case.json --output demo_output.json
+python demo/run_react_agent_demo.py --input demo/react_case.json --output react_demo_output.json
 ```
 
-Typical installation time on a normal desktop or workstation is 5 to 15 minutes, depending on network speed and cached packages.
+Typical setup time on a normal desktop or workstation is less than five minutes. No GPU or private service is required for the synthetic demos. Install component-specific dependencies only when inspecting that component.
 
-The root `requirements.txt` is intended for the synthetic demo and lightweight source inspection. Install component-specific dependencies only for the workflow you need to inspect or run.
+### Tool Plaza MCP adapter installation
+
+Use this profile when inspecting or launching the MCP-style adapters under `tool_plaza/mcp_servers/`.
+
+```bash
+python -m venv .venv-tool-plaza
+source .venv-tool-plaza/bin/activate
+pip install -r tool_plaza/requirements.txt
+```
+
+This installs common adapter dependencies including `fastmcp`, `aiohttp`, `httpx`, `requests`, `openai`, `anthropic`, `pydantic` and `PyYAML`. Provider-specific adapters may require extra local runtimes such as Node/npm, `markitdown-mcp` or `google-genai`, as described in `tool_plaza/README.md`.
+
+### Public Tool Plaza API server installation
+
+Use this profile when running the retained public FastAPI tool server.
+
+```bash
+python -m venv .venv-tool-api
+source .venv-tool-api/bin/activate
+pip install -r tool_plaza/bone_tools_api/requirements.txt
+bash tool_plaza/bone_tools_api/start_server.sh
+```
+
+Default endpoint:
+
+```text
+http://localhost:8766
+```
+
+The public API server can start without the excluded CPubMed and MedicalBook data files. When those files are absent, the corresponding tools are skipped and the remaining retained tools stay available.
+
+### Optional model endpoint installation
+
+The ReAct-style demo and several templates can use any OpenAI-compatible endpoint, including a local vLLM server. The repository does not include model weights.
+
+API provider example:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+export OPENAI_MODEL="gpt-4o-mini"
+```
+
+Local vLLM example:
+
+```bash
+export OPENAI_API_KEY="EMPTY"
+export OPENAI_BASE_URL="http://localhost:8080/v1"
+export OPENAI_MODEL="local-model-name"
+```
+
+Keep model paths, checkpoints, private endpoints and credentials outside version control. The ReAct demo reads `OPENAI_MODEL`; Tool Plaza MCP reasoning configs read `OPENAI_MODEL_NAME`; the public API server MedicalBook path reads `OPENAI_API_BASE` for its optional OpenAI-compatible base URL.
 
 ## Component-specific dependencies
 
 | Component | Path | Main dependencies | Notes |
 | --- | --- | --- | --- |
-| Synthetic demo | `demo/` | Python standard library only | Runs on CPU. It does not require model weights, private APIs or hospital services. |
-| OrthoPilot agent runtime | `orthopilot_agent/` | `mcp`, OpenAI-compatible LLM clients, `pydantic`, `pyyaml`, `httpx` | Requires configured model endpoints and Tool Plaza services for full agent execution. |
-| Tool Plaza interfaces | `tool_plaza/` | `fastapi`, `uvicorn`, `pydantic`, `requests`, `httpx`, `openai`; optional tool-specific packages | Interface templates are provided. Site-specific services and credentials must be configured locally. |
+| Synthetic demos | `demo/` | Python standard library for deterministic mode; OpenAI-compatible HTTP endpoint optional for model mode | Runs on CPU. It does not require real patient data, private APIs or hospital services. |
+| OrthoPilot agent runtime | `orthopilot_agent/` | OpenAI-compatible LLM clients, `pydantic`, `pyyaml`, `httpx` | Requires configured model endpoints and Tool Plaza services for full agent execution. |
+| Tool Plaza MCP adapters | `tool_plaza/mcp_servers/` | `fastmcp`, `aiohttp`, `httpx`, `requests`, `openai`, `anthropic`, `pydantic`, `PyYAML`; optional provider runtimes as needed | Install `tool_plaza/requirements.txt`. Site-specific services and credentials must be configured locally. |
+| Tool Plaza public API server | `tool_plaza/bone_tools_api/` | `fastapi`, `uvicorn`, `pydantic`, `requests`, `httpx`, `openai`, `pandas`, `numpy`, optional tool-specific packages | Install `tool_plaza/bone_tools_api/requirements.txt`. Large databases and private indexes are not included. |
 | CHEESE training and inference | `cheese/` | `torch`, `transformers`, `datasets`, `accelerate`, `openai`, `requests`; training backends as needed | Requires local checkpoints or an OpenAI-compatible endpoint. Model weights and training data are not included. |
 | ORACLE framework | `oracle/` | `openai`, `httpx`, `pydantic`, `pandas`, `tqdm` | Requires evaluator model access and controlled response/rubric files that are not included. |
 
-For reviewer installation, start with the root `requirements.txt` and the deterministic demo. Install component-specific dependencies only when needed.
+For reviewer installation, start with the minimal profile and the deterministic demo. Install component-specific dependencies only for the workflow you need to inspect or run.
 
 ## Demo
 
@@ -140,28 +198,26 @@ ORACLE scoring of open-ended clinical management responses requires rubric files
 
 ### Configure Tool Plaza interfaces
 
-Tool Plaza templates are located in `tool_plaza/`. Replace site-specific values locally:
+Detailed Tool Plaza installation and service configuration instructions are provided in `tool_plaza/README.md`.
 
-```
-OPENAI_API_KEY
-https://api.openai.com/v1
-localhost
-8000
-checkpoints/model
-data/input.jsonl
-outputs/output.jsonl
-```
+A public service manifest is provided at `tool_plaza/service_manifest.json`. It records service roles, default local ports, health endpoints, environment variables and matching tool config files without private paths, credentials or database files.
 
-A public service manifest is provided at `tool_plaza/service_manifest.json`. It records the expected service roles, default local ports and environment variables without private paths, credentials or database files. Inspect service status with:
+Inspect service status:
 
 ```bash
 bash tool_plaza/start_all_services.sh status
 ```
 
-Start retained or local services with:
+Start retained or locally supplied services:
 
 ```bash
 bash tool_plaza/start_all_services.sh start
+```
+
+Stop services started by the public skeleton:
+
+```bash
+bash tool_plaza/start_all_services.sh stop
 ```
 
 The public script starts only commands that are available in this release or explicitly supplied through environment variables such as `EHR_START_COMMAND`, `MEDRAG_START_COMMAND` or `VLLM_START_COMMAND`. Never commit credentials, hospital endpoints, model weights, private database paths or patient-derived files.

@@ -1,6 +1,6 @@
 # CPubMed Tools
 
-This directory exposes CPubMed knowledge graph tools through the Tool Plaza API server.
+This directory documents CPubMed knowledge graph tools for the Tool Plaza API server. These tools are registered only when local CPubMed data files are supplied under `tool_plaza/bone_tools_api/tools/data/cpubmed/`. In the default public release, the data files are excluded and the API server skips these tools.
 
 ## Core tools
 

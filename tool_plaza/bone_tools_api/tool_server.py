@@ -38,9 +38,11 @@ from tools.cpubmed import (
     RELATION_TYPES,
     RELATION_TRANSLATION
 )
-from tools.medibook import MedicalBookTool
 from tools.semanticscholar import SemanticScholarSearchTool
 from logger_config import server_logger as logger, tool_logger, truncate_text
+
+CPUBMED_DATA_DIR = Path(__file__).parent / "tools" / "data" / "cpubmed"
+MEDIBOOK_DATA_DIR = Path(__file__).parent / "tools" / "data" / "medibook"
 
 
 # ============= model =============
@@ -85,31 +87,32 @@ class ToolRegistry:
             logger.info("...")
             self.register_tool(EchoTool())
 
-            # CPubMed
-            logger.info("CPubMed...")
-            self.register_tool(CPubMedTool())
-            self.register_tool(CPubMedRelationTool())
+            if (CPUBMED_DATA_DIR / "CPubMed-kGv2_0.csv").exists() or (CPUBMED_DATA_DIR / "kg_index.pkl").exists():
+                logger.info("Loading CPubMed tools...")
+                self.register_tool(CPubMedTool())
+                self.register_tool(CPubMedRelationTool())
+                self.register_tool(CPubMedDatabaseSummaryTool())
+                self.register_tool(CPubMedGetEntityTypeTool())
+                self.register_tool(CPubMedFuzzySearchTool())
 
-            # CPubMed
-            logger.info("CPubMed...")
-            self.register_tool(CPubMedDatabaseSummaryTool())
-            self.register_tool(CPubMedGetEntityTypeTool())
-            self.register_tool(CPubMedFuzzySearchTool())
-
-            # CPubMed
-            logger.info("CPubMed(45)...")
-            for relation_name, tool_class in RELATION_TOOL_CLASSES.items():
-                try:
-                    tool = tool_class()
-                    self.register_tool(tool)
-                except Exception as e:
-                    logger.error(f" {relation_name}: {e}")
+                logger.info("Loading CPubMed relation tools...")
+                for relation_name, tool_class in RELATION_TOOL_CLASSES.items():
+                    try:
+                        tool = tool_class()
+                        self.register_tool(tool)
+                    except Exception as e:
+                        logger.error(f"Failed to register CPubMed relation tool {relation_name}: {e}")
+            else:
+                logger.warning("CPubMed data is not included in this public release; CPubMed tools are skipped")
 
             logger.info("Loading MedicalBook...")
             try:
+                if not (MEDIBOOK_DATA_DIR / "medical_books_content.json").exists():
+                    raise FileNotFoundError(MEDIBOOK_DATA_DIR / "medical_books_content.json")
+                from tools.medibook import MedicalBookTool
                 self.register_tool(MedicalBookTool())
-            except FileNotFoundError as e:
-                logger.warning(f"MedicalBook data is not included in this public release: {e}")
+            except (FileNotFoundError, ImportError) as e:
+                logger.warning(f"MedicalBook is unavailable in this public release: {e}")
 
             # Semantic Scholar
             logger.info("Semantic Scholar...")
@@ -228,7 +231,7 @@ async def startup_event():
         tool_registry = ToolRegistry()
         logger.info("!")
         logger.info(f": {len(tool_registry.tools)}")
-        logger.info(f"API: http://localhost:8000")
+        logger.info(f"API: http://{os.getenv('HOST', '127.0.0.1')}:{os.getenv('PORT', '8766')}")
         logger.info("=" * 80)
     except Exception as e:
         logger.error(f": {e}", exc_info=True)

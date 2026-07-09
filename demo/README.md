@@ -40,7 +40,7 @@ Run with a local OpenAI-compatible vLLM server:
 
 ```bash
 export OPENAI_API_KEY="EMPTY"
-export OPENAI_BASE_URL="http://localhost:8000/v1"
+export OPENAI_BASE_URL="http://localhost:8080/v1"
 export OPENAI_MODEL="local-model-name"
 python demo/run_react_agent_demo.py \
  --backend openai \

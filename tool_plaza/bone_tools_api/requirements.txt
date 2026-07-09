@@ -12,8 +12,7 @@ requests==2.32.3
 pandas==2.2.3
 numpy==2.3.5
 
-# ML/Embedding
-FlagEmbedding==1.3.5
+# Optional MedicalBook embedding support requires FlagEmbedding when local MedicalBook data is supplied.
 
 # OpenAI
 openai==1.71.0

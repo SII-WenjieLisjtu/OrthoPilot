@@ -51,7 +51,7 @@ from urllib import request
 url = sys.argv[1]
 try:
     with request.urlopen(url, timeout=2) as response:
-        raise SystemExit(0 if 200 <= response.status < 500 else 1)
+        raise SystemExit(0 if 200 <= response.status < 300 else 1)
 except Exception:
     raise SystemExit(1)
 PY
