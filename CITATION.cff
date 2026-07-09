@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: "OrthoPilot: Evidence-grounded AI for longitudinal clinical management in musculoskeletal care"
+message: "If you use this software, please cite the associated manuscript."
+type: software
+authors:
+  - family-names: "OrthoPilot contributors"
+version: "0.1.0"
+date-released: "2026-07-09"
+license: Apache-2.0
+repository-code: "https://github.com/SII-WenjieLisjtu/OrthoPilot"
+abstract: "Source code, prompts, configuration templates and analysis scripts accompanying the OrthoPilot manuscript."

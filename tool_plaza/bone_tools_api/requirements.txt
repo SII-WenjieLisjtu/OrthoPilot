@@ -1,0 +1,22 @@
+# Core dependencies
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+
+# HTTP client for testing
+httpx
+requests
+
+# Data processing
+pandas
+numpy
+
+# ML/Embedding
+FlagEmbedding
+
+# OpenAI
+openai
+
+# Utilities
+python-dotenv

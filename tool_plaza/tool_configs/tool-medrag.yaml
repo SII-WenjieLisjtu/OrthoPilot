@@ -1,0 +1,7 @@
+name: "tool-medrag"
+tool_command: "python"
+args:
+  - "-m"
+  - "tool_plaza.mcp_servers.medrag_mcp_server"
+env:
+  MEDRAG_BASE_URL: "${oc.env:MEDRAG_BASE_URL,http://YOUR_HOST:YOUR_PORT"

@@ -1,0 +1,50 @@
+### model
+# model_name_or_path: /path/to/storage
+model_name_or_path: /path/to/storage
+# model_name_or_path: /path/to/storage
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 32
+# lora_alpha: 16
+
+### dataset
+# dataset: cblue,cmb_clin,HuatuoGPT2_SFT,encyclopedia,cmb_exam,IMCS_MRG,pulse_common,CMExam,MedDialog,MedQA
+# dataset: cblue,cmb_clin,HuatuoGPT2_SFT,encyclopedia,cmb_exam,pulse_common,CMExam,MedDialog,MedQA
+# dataset: Task_1,Task_2,Task_3,Task_4,Task_5_choice,Task_5_judge,Task_6,Task_7_CoT,Task_7_open,Task_7_choice,Task_8,Task_9
+dataset: Bone_all
+template: qwen3
+cutoff_len: 8192
+max_samples: 5000000
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### output
+output_dir: /path/to/storage
+logging_steps: 1
+save_steps: 70
+plot_loss: true
+overwrite_output_dir: true
+
+### train
+per_device_train_batch_size: 2
+# per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4       ### initial learning rate 
+# learning_rate: 5.0e-5     
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+
+### eval
+val_size: 0.01
+per_device_eval_batch_size: 4
+# per_device_eval_batch_size: 1
+eval_strategy: steps
+eval_steps: 10

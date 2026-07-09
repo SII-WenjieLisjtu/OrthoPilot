@@ -1,0 +1,47 @@
+### model
+model_name_or_path:  /path/to/orthopilot/ckpt/pt/Qwen3-14B-pt/merge22204
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 16
+lora_target: all
+
+### dataset
+dataset: text_sft_oe_cot_medical_o1_reasoning_SFT, task1, task2, task3, task4, task5, task6, task7, task8, task9, task10, task11, healthbench
+# text_sft_mc_AfriMed_QA_v2, text_sft_mc_AlphaMed19K, text_sft_mc_Apollo, text_sft_mc_CRAFT_BioQA, text_sft_mc_med_qa, text_sft_mc_medical_qa_datasets, text_sft_mc_mediQ, text_sft_mc_medmcqa, text_sft_mc_MedQA, text_sft_mc_MLEC_QA, text_sft_mc_Pima, text_sft_mc_SDOH_NLI, text_sft_mc_wikimedqa, text_sft_oe_AfriMed_QA_v2, text_sft_oe_Apollo, text_sft_oe_Asclepius_Synthetic_Clinical_Notes, text_sft_oe_bioasq, text_sft_oe_biology_how_why_corpus, text_sft_oe_camel_ai_biology, text_sft_oe_ChatDoctor_iCliniq, text_sft_oe_ChatDoctor, text_sft_oe_ChatMed_Consult_Dataset, text_sft_oe_Chinese_medical_dialogue, text_sft_oe_covid_qa, text_sft_oe_DoctorFLAN, text_sft_oe_emrQA, text_sft_oe_FDA_Pharmaceuticals_FAQ, text_sft_oe_GMAI_VL_5_5M, text_sft_oe_Healix_V1, text_sft_oe_HealthCareMagic_100k_en, text_sft_oe_Huatuo_26M, text_sft_oe_HuatuoGPT2_SFT_GPT4_140K, text_sft_oe_Know_Medical_Dialogues, text_sft_oe_liveqa_trec2017, text_sft_oe_MedChatZH, text_sft_oe_MedGPT_5k_ko, text_sft_oe_medical_meadow_wikidoc, text_sft_oe_medical_meadow, text_sft_oe_medical_qa_datasets, text_sft_oe_medical_question_answering_datasets, text_sft_oe_medicationqa, text_sft_oe_MedInstruct, text_sft_oe_MEDIQA_AnS, text_sft_oe_MedQuAD, text_sft_oe_MedRAG, text_sft_oe_MedSyn, text_sft_oe_Mental_health_chatbot_dataset, text_sft_oe_Miriad_5_8m, text_sft_oe_moi_instructions, text_sft_oe_MS_CXR_T, text_sft_oe_OpenAssistant, text_sft_oe_pmc_llama_instructions, text_sft_oe_PubMedQA_instruction, text_sft_oe_pubmedqa, text_sft_oe_QiZhenGPT_20k, text_sft_oe_RealMedQA, text_sft_oe_ReMeDi, text_sft_oe_ShenNong_TCM_Dataset, text_sft_oe_ViHealthQA, text_sft_oe_Visual_Med_Alpaca,       text_sft_mc_cot_MedMCQA, text_sft_mc_cot_MedReason, text_sft_mc_cot_pubmedqa, text_sft_mc_cot_ReasonMed, text_sft_oe_cot_bioasq10b_factoid, text_sft_oe_cot_Huatuo26M_Lite1, text_sft_oe_cot_medical_o1_reasoning_SFT_vi_translated, text_sft_oe_cot_medical_specialities, text_sft_oe_cot_RJUA_QA, text_sft_oe_cot_ToT_Biology_32k,
+template: qwen3
+cutoff_len: 8192
+max_samples: 10000000
+overwrite_cache: true
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+
+### output
+output_dir: /path/to/orthopilot/ckpt/sft/Qwen3-14B-sft4
+logging_steps: 10
+save_steps: 1000
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+report_to: tensorboard  # choices: [none, wandb, tensorboard, swanlab, mlflow]
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 2.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+
+### eval
+# eval_dataset: c4_demo
+val_size: 0.05
+per_device_eval_batch_size: 1
+eval_strategy: steps
+eval_steps: 200

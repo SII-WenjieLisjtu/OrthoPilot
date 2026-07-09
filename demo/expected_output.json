@@ -1,0 +1,19 @@
+{
+  "case_id": "SYNTH-ORTHO-001",
+  "task": "Surgical planning",
+  "evidence_used": [
+    "ehr_summary",
+    "imaging_summary",
+    "laboratory_summary"
+  ],
+  "recommendation": {
+    "diagnostic_focus": "Displaced femoral neck fracture in an older adult with osteoporosis risk.",
+    "management_plan": "Confirm imaging, assess perioperative risk, optimize comorbidities, discuss arthroplasty-based surgical management, and plan early postoperative mobilization.",
+    "safety_checks": [
+      "Verify patient identity and imaging laterality.",
+      "Screen for anticoagulant use and correct reversible bleeding risk.",
+      "Document that this is a synthetic demo output and not clinical advice."
+    ]
+  },
+  "mode": "deterministic_demo"
+}

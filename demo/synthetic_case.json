@@ -1,0 +1,14 @@
+{
+  "case_id": "SYNTH-ORTHO-001",
+  "patient": {
+    "age": 67,
+    "sex": "female"
+  },
+  "presentation": "Progressive right hip pain after a low-energy fall with difficulty bearing weight.",
+  "available_evidence": {
+    "ehr_summary": "No real patient data. Synthetic history includes osteoporosis and hypertension.",
+    "imaging_summary": "Synthetic radiograph description suggests a displaced femoral neck fracture.",
+    "laboratory_summary": "Synthetic haemoglobin, renal function and coagulation profile are acceptable for operative planning."
+  },
+  "task": "Surgical planning"
+}

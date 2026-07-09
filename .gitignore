@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.env
+.env.*
+
+# Outputs and caches
+outputs/
+output/
+results/
+result/
+logs/
+service_logs/
+.cache/
+.ruff_cache/
+.ipynb_checkpoints/
+wandb/
+tensorboard_log/
+
+# Data and checkpoints
+data/
+datasets/
+cache/
+checkpoints/
+ckpt/
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.jsonl
+*.parquet
+*.pkl
+*.npy
+*.npz
+*.faiss
+*.db
+*.sqlite
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+*.zip
+*.rar
+*.tar
+*.tar.gz
+
+# Generated figures and documents
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.docx
+*.pptx
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,15 @@
+Retained 22 complete models; excluded 2 incomplete models: Qwen3-8B, HuatuoGPT-o1-7B.
+
+T1 second-best: CHEESE (63.82).
+T2 second-best: Grok-4 (54.10).
+T3 second-best: CHEESE (68.31).
+T4 second-best: CHEESE (61.87).
+T5 second-best: GPT-5.1 (50.21).
+T6 second-best: CHEESE (62.80).
+T7 second-best: GPT-5.1 (75.80).
+T8 second-best: CHEESE (70.00).
+T9 second-best: CHEESE (84.00).
+T10 second-best: CHEESE (87.00).
+T11 second-best: CHEESE (71.80).
+Closed avg second-best: CHEESE (62.00).
+Open avg second-best: CHEESE (71.00).

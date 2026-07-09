@@ -1,0 +1,7 @@
+name: "tool-ehr"
+tool_command: "python"
+args:
+  - "-m"
+  - "tool_plaza.mcp_servers.ehr_mcp_server"
+env:
+  EHR_BASE_URL: "${oc.env:EHR_BASE_URL,http://YOUR_HOST:YOUR_PORT"

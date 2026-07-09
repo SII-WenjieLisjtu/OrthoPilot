@@ -1,0 +1,11 @@
+### model
+model_name_or_path: /path/to/orthopilot/ckpt/pt/Qwen3-14B-pt/merge22204
+adapter_name_or_path: /path/to/orthopilot/ckpt/sft/Qwen3-14B-sft4/checkpoint-1750
+template: qwen3
+trust_remote_code: true
+
+### export
+export_dir: /path/to/orthopilot/ckpt/sft/Qwen3-14B-sft4/merge1750
+export_size: 5
+export_device: cpu  
+export_legacy_format: false

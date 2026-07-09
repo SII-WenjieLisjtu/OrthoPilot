@@ -1,0 +1,29 @@
+================================================================
+READER STUDY CASE EVALUATION FORM
+================================================================
+Case ID: P0243
+Disease Category: Spine disorders
+
+PATIENT INFORMATION (to be filled with EHR data):
+- Demographics: [Age / Sex / BMI]
+- Chief complaint: [...]
+- History of present illness: [...]
+- Past medical history: [...]
+- Physical examination: [...]
+- Laboratory / Imaging: [...]
+
+TASKS:
+T1. Admission diagnosis: ___
+T2. Preoperative diagnosis: ___
+T3. Postoperative diagnosis: ___
+T4. Discharge diagnosis: ___
+T5. Perioperative risk assessment: [write]
+T6. Surgical approach: [write]
+T7. Operative note: [write]
+T8. Postoperative orders: [write]
+T9. Discharge summary: [write]
+T10. Rehabilitation plan: [write]
+T11. MDT consultation: [write]
+
+Physician ID: ___  Phase: [ ] 1 (alone) [ ] 2 (AI-assisted)
+================================================================
