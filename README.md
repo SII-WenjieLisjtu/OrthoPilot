@@ -72,7 +72,23 @@ pip install -r requirements.txt
 
 Typical installation time on a normal desktop or workstation is 5 to 15 minutes, depending on network speed and whether PyTorch wheels are already cached.
 
-Some scripts require optional dependencies such as PyTorch, Transformers, vLLM, FastAPI, FAISS, LLaMA-Factory or VERL. These are not vendored in this repository.
+The root `requirements.txt` is intended for the lightweight demo, code inspection and most analysis scripts. Some components have additional optional dependencies and should be installed only when needed.
+
+## Component-specific dependencies
+
+| Component | Path | Main dependencies | Notes |
+| --- | --- | --- | --- |
+| Synthetic demo | `demo/` | Python standard library only | Runs on CPU. It does not require model weights, private APIs or hospital services. |
+| Paper analyses and OrthoBench utilities | `analyses/`, `orthobench/` | `numpy`, `pandas`, `scipy`, `scikit-learn`, `matplotlib`, `seaborn`, `plotly`, `statsmodels` | Source tables are controlled-access and are not included in this public release. |
+| ORACLE evaluation | `oracle/` | `openai`, `httpx`, `pydantic`, `pandas`, `tqdm` | Requires evaluator model access and prepared response/rubric files. |
+| CHEESE inference and evaluation | `cheese/inference/`, `cheese/evaluation/` | `torch`, `transformers`, `datasets`, `accelerate`, `openai`, `requests` | Can use local checkpoints or an OpenAI-compatible endpoint. Model weights are not included. |
+| CHEESE training and distillation | `cheese/training/`, `cheese/distillation/` | PyTorch, Transformers, LLaMA-Factory or VERL-style training stacks | Requires GPU infrastructure, training data and checkpoints. Install according to the selected training backend. |
+| Tool Plaza MCP servers | `tool_plaza/mcp_servers/` | `fastapi`, `uvicorn`, `pydantic`, `requests`, `httpx`, `openai`; optional tool-specific packages | Server templates are provided. Site-specific services and credentials must be configured locally. |
+| Bone tools API | `tool_plaza/bone_tools_api/` | See `tool_plaza/bone_tools_api/requirements.txt` | Includes FastAPI, multipart upload support, HTTP clients, data processing packages and optional embedding dependencies such as `FlagEmbedding`. |
+| Trajectory generation utilities | `orthopilot_agent/fathom_trajectory/` | See `orthopilot_agent/fathom_trajectory/requirements.txt` | This is an optional heavy environment for trajectory generation and search-based workflows. It may require CUDA, browser automation, SGLang or other serving packages. It is not required for the demo. |
+| OrthoPilot agent runtime | `orthopilot_agent/miroflow_core/` | `mcp`, `openai` or compatible LLM clients, `pydantic`, `pyyaml`, `httpx` | Requires configured model endpoints and Tool Plaza services for full agent execution. |
+
+For reviewer installation, start with the root `requirements.txt` and the deterministic demo. Install component-specific dependencies only for the workflow you need to run.
 
 ## Demo
 
