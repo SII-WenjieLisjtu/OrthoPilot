@@ -4,4 +4,4 @@ args:
  - "-m"
  - "tool_plaza.mcp_servers.ehr_mcp_server"
 env:
- EHR_BASE_URL: "${oc.env:EHR_BASE_URL,http://localhost:9001}"
+ EHR_BASE_URL: "${oc.env:EHR_BASE_URL,http://localhost:9000}"

@@ -13,7 +13,7 @@ The retained public ORACLE files are:
 
 ## Evaluation concept
 
-For open-response tasks, ORACLE represents expected answer content as task-specific clinical elements. A configured evaluator checks whether a model response covers those elements and returns structured coverage judgments. Implementations can aggregate those judgments into response-level scores for local research workflows.
+For open-response tasks, ORACLE represents expected answer content as task oriented clinical elements. A configured evaluator checks whether a model response covers those elements and returns structured coverage judgments. Implementations can aggregate those judgments into response-level scores for local research workflows.
 
 The public repository provides framework code only. Users must supply their own governed task files, rubrics, response files and evaluator model access.
 

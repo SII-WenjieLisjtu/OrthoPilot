@@ -8,7 +8,7 @@ import aiohttp
 from fastmcp import FastMCP
 from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
-KG_BASE_URL = os.environ.get("KG_BASE_URL", "http://localhost:8000")
+KG_BASE_URL = os.environ.get("KG_BASE_URL", "http://localhost:8766")
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("knowledge-graph-mcp-server")

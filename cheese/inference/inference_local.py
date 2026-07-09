@@ -299,7 +299,7 @@ async def main():
     headers = {
     "Accept": "application/json",
     "Content-Type": "application/json",
-    "Authorization": "Bearer sk-local"
+    "Authorization": "Bearer local-placeholder-token"
 }
     base = args.base_url.rstrip("/") + "/"
 

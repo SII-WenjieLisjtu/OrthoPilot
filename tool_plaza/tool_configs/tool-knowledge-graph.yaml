@@ -4,4 +4,4 @@ args:
  - "-m"
  - "tool_plaza.mcp_servers.knowledge_graph_mcp_server"
 env:
- KG_BASE_URL: "${oc.env:KG_BASE_URL,http://localhost:9004}"
+ KG_BASE_URL: "${oc.env:KG_BASE_URL,http://localhost:8766}"

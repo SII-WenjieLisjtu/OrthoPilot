@@ -4,4 +4,4 @@ args:
  - "-m"
  - "tool_plaza.mcp_servers.medrag_mcp_server"
 env:
- MEDRAG_BASE_URL: "${oc.env:MEDRAG_BASE_URL,http://localhost:9005}"
+ MEDRAG_BASE_URL: "${oc.env:MEDRAG_BASE_URL,http://localhost:8000}"

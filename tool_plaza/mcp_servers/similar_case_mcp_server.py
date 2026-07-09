@@ -8,8 +8,8 @@ import aiohttp
 from fastmcp import FastMCP
 from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
-HOSPITAL_SIMILAR_URL = os.environ.get("HOSPITAL_SIMILAR_URL", "http://localhost:8000")
-PMC_PATIENTS_URL = os.environ.get("PMC_PATIENTS_URL", "http://localhost:8000")
+HOSPITAL_SIMILAR_URL = os.environ.get("HOSPITAL_SIMILAR_URL", "http://localhost:9999")
+PMC_PATIENTS_URL = os.environ.get("PMC_PATIENTS_URL", "http://localhost:9001")
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("similar-case-mcp-server")

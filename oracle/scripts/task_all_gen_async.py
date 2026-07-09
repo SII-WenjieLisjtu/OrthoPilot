@@ -1944,7 +1944,7 @@ async def main(args):
         LOCAL_HEADERS = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Authorization": "Bearer sk-local",
+            "Authorization": "Bearer local-placeholder-token",
         }
         client = httpx.Client(
             base_url=LOCAL_BASE_URL,
@@ -1999,7 +1999,7 @@ async def main(args):
     LOCAL_HEADERS = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": "Bearer sk-local",
+        "Authorization": "Bearer local-placeholder-token",
     }
 
     openai_api_key = os.getenv("OPENAI_API_KEY", "")

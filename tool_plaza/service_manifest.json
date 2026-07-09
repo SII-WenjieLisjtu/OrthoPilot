@@ -1,0 +1,77 @@
+{
+  "description": "Public Tool Plaza service manifest for local configuration. It records service roles, default ports and environment variables without private data paths, credentials or database files.",
+  "services": [
+    {
+      "name": "ehr",
+      "role": "Synthetic or site-local EHR adapter endpoint",
+      "default_url": "http://localhost:9000",
+      "health_path": "/health",
+      "env": "EHR_BASE_URL",
+      "tool_config": "tool_plaza/tool_configs/tool-ehr.yaml",
+      "public_start": "Set EHR_START_COMMAND to a local non-public service command if you have one."
+    },
+    {
+      "name": "similar-case",
+      "role": "Synthetic or site-local similar-case retrieval endpoint",
+      "default_url": "http://localhost:9999",
+      "health_path": "/health",
+      "env": "HOSPITAL_SIMILAR_URL",
+      "tool_config": "tool_plaza/tool_configs/tool-similar-case.yaml",
+      "public_start": "Set SIMILAR_CASE_START_COMMAND to a local non-public service command if you have one."
+    },
+    {
+      "name": "knowledge-graph",
+      "role": "Public Tool Plaza API server for retained knowledge-tool interfaces",
+      "default_url": "http://localhost:8766",
+      "health_path": "/health",
+      "env": "KG_BASE_URL",
+      "tool_config": "tool_plaza/tool_configs/tool-knowledge-graph.yaml",
+      "public_start": "bash tool_plaza/bone_tools_api/start_server.sh or the equivalent repo-relative uvicorn command used by tool_plaza/start_all_services.sh"
+    },
+    {
+      "name": "medrag-translate",
+      "role": "Optional local translation endpoint used by retrieval pipelines",
+      "default_url": "http://localhost:8888",
+      "health_path": "/health",
+      "env": "MEDRAG_TRANSLATE_BASE_URL",
+      "tool_config": null,
+      "public_start": "Set MEDRAG_TRANSLATE_START_COMMAND to a local non-public service command if you have one."
+    },
+    {
+      "name": "medrag",
+      "role": "Optional local retrieval-generation endpoint",
+      "default_url": "http://localhost:8000",
+      "health_path": "/health",
+      "env": "MEDRAG_BASE_URL",
+      "tool_config": "tool_plaza/tool_configs/tool-medrag.yaml",
+      "public_start": "Set MEDRAG_START_COMMAND to a local non-public service command if you have one."
+    },
+    {
+      "name": "pmc-patients",
+      "role": "Optional patient-similarity literature retrieval endpoint",
+      "default_url": "http://localhost:9001",
+      "health_path": "/health",
+      "env": "PMC_PATIENTS_URL",
+      "tool_config": null,
+      "public_start": "Set PMC_PATIENTS_START_COMMAND to a local non-public service command if you have one."
+    },
+    {
+      "name": "fathom-search",
+      "role": "Optional web-search sandbox endpoint",
+      "default_url": "http://localhost:8904",
+      "health_path": "/health",
+      "env": "FATHOM_SANDBOX_URL",
+      "tool_config": "tool_plaza/tool_configs/tool-web-search.yaml",
+      "public_start": "Set FATHOM_SEARCH_START_COMMAND to a local non-public service command if you have one."
+    },
+    {
+      "name": "qwen3-vllm",
+      "role": "Optional OpenAI-compatible local vLLM model endpoint",
+      "default_url": "http://localhost:8080/v1",
+      "health_path": "/models",
+      "env": "OPENAI_BASE_URL",
+      "tool_config": null,
+      "public_start": "Set VLLM_START_COMMAND to your local vLLM command if you have model weights."
+    }
+  ]
+}

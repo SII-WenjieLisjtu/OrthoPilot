@@ -18,4 +18,8 @@ printf 'Workers: %s\n' "${WORKERS}"
 printf 'Logs: %s\n' "${LOG_DIR}"
 printf 'API URL: http://%s:%s\n' "${HOST}" "${PORT}"
 
+if [[ "${WORKERS}" == "1" ]]; then
+  exec uvicorn tool_server:app --host "${HOST}" --port "${PORT}"
+fi
+
 exec uvicorn tool_server:app --host "${HOST}" --port "${PORT}" --workers "${WORKERS}"

@@ -8,7 +8,7 @@ import aiohttp
 from fastmcp import FastMCP
 from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
-EHR_BASE_URL = os.environ.get("EHR_BASE_URL", "http://localhost:8000")
+EHR_BASE_URL = os.environ.get("EHR_BASE_URL", "http://localhost:9000")
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("ehr-mcp-server")

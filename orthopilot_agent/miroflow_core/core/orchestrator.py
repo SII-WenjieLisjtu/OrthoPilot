@@ -829,7 +829,7 @@ Your objective is maximum completeness, transparency, and detailed documentation
         if self.chinese_context:
             task_guidence += """
 
-## Task-specific reporting guidance
+## Task oriented reporting guidance
 
 When the task requires Chinese-context answer extraction, keep the response structured and explicit:
 

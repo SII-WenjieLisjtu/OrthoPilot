@@ -1,0 +1,19 @@
+{
+  "case_id": "SYN-REACT-001",
+  "task": "Surgical planning",
+  "patient_context": {
+    "age": 72,
+    "presentation": "Left hip pain after a low-energy fall.",
+    "imaging": "Displaced left femoral neck fracture on radiographs.",
+    "comorbidities": [
+      "hypertension",
+      "osteoporosis risk"
+    ]
+  },
+  "available_tools": [
+    "case_summary",
+    "evidence_lookup",
+    "safety_check"
+  ],
+  "question": "Provide a concise musculoskeletal management recommendation for this synthetic case."
+}

@@ -4,5 +4,5 @@ args:
  - "-m"
  - "tool_plaza.mcp_servers.similar_case_mcp_server"
 env:
- HOSPITAL_SIMILAR_URL: "${oc.env:HOSPITAL_SIMILAR_URL,http://localhost:9002}"
- PMC_PATIENTS_URL: "${oc.env:PMC_PATIENTS_URL,http://localhost:9003}"
+ HOSPITAL_SIMILAR_URL: "${oc.env:HOSPITAL_SIMILAR_URL,http://localhost:9999}"
+ PMC_PATIENTS_URL: "${oc.env:PMC_PATIENTS_URL,http://localhost:9001}"

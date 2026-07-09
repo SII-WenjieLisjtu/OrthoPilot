@@ -94,9 +94,9 @@ For reviewer installation, start with the root `requirements.txt` and the determ
 
 ## Demo
 
-A deterministic synthetic demo is provided in `demo/`. It uses no real patient data, no model weights and no private services.
+Synthetic demos are provided in `demo/`. They use no real patient data, model weights, private services or committed API keys.
 
-Run from the repository root:
+Run the deterministic wiring check from the repository root:
 
 ```bash
 python demo/run_demo.py \
@@ -106,7 +106,15 @@ python demo/run_demo.py \
 
 Expected runtime is less than one minute on a normal CPU. The generated JSON should match `demo/expected_output.json` except for formatting.
 
-The demo loads a synthetic musculoskeletal case, collects simulated evidence fields and emits a structured OrthoPilot-style management recommendation. It is intended only to verify installation and repository wiring.
+Run the public ReAct-style agent loop without external services:
+
+```bash
+python demo/run_react_agent_demo.py \
+ --input demo/react_case.json \
+ --output react_demo_output.json
+```
+
+Run the same ReAct-style loop with an OpenAI-compatible API or a local vLLM server by setting `OPENAI_API_KEY`, `OPENAI_BASE_URL` and `OPENAI_MODEL`, then passing `--backend openai`. The demo uses synthetic placeholder tools only. It is intended to show agent-loop wiring, not clinical use or manuscript-result reproduction.
 
 ## Instructions for use
 
@@ -144,7 +152,19 @@ data/input.jsonl
 outputs/output.jsonl
 ```
 
-Never commit credentials, hospital endpoints or patient-derived files.
+A public service manifest is provided at `tool_plaza/service_manifest.json`. It records the expected service roles, default local ports and environment variables without private paths, credentials or database files. Inspect service status with:
+
+```bash
+bash tool_plaza/start_all_services.sh status
+```
+
+Start retained or local services with:
+
+```bash
+bash tool_plaza/start_all_services.sh start
+```
+
+The public script starts only commands that are available in this release or explicitly supplied through environment variables such as `EHR_START_COMMAND`, `MEDRAG_START_COMMAND` or `VLLM_START_COMMAND`. Never commit credentials, hospital endpoints, model weights, private database paths or patient-derived files.
 
 ## Reproducing manuscript results
 

@@ -8,7 +8,7 @@ import aiohttp
 from fastmcp import FastMCP
 from orthopilot_agent.miroflow_core.logging.logger import setup_mcp_logging
 
-SANDBOX_URL = os.environ.get("FATHOM_SANDBOX_URL", "http://localhost:8000")
+SANDBOX_URL = os.environ.get("FATHOM_SANDBOX_URL", "http://localhost:8904")
 
 setup_mcp_logging(tool_name=os.path.basename(__file__))
 mcp = FastMCP("web-search-mcp-server")

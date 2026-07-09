@@ -8,7 +8,7 @@ This file maps retained public source components to the framework workflows desc
 | Tool Plaza evidence interfaces | `tool_plaza/` | Hospital data services, external knowledge services, configured endpoints and credentials | Simulated evidence fields in `demo/synthetic_case.json` |
 | CHEESE training and inference recipe | `cheese/` | Controlled training data, model checkpoint or OpenAI-compatible endpoint and task JSONL input | Command template in `README.md` |
 | ORACLE evaluation framework | `oracle/` | Rubrics, response files, evaluator model endpoint and controlled task data | Source inspection only |
-| Prompts | `prompts/` | Task-specific runtime configuration and governed input data | Prompt source inspection only |
+| Prompts | `prompts/` | Task oriented runtime configuration and governed input data | Prompt source inspection only |
 | Synthetic demo | `demo/` | No private inputs | Fully runnable on CPU |
 
 ## Excluded result-building assets

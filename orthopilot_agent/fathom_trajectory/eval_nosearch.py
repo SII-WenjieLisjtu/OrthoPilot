@@ -18,7 +18,7 @@ Dataset format (one JSON object per line):
 
 Quick start
 -----------
-export OPENAI_API_KEY=sk-... # for judge
+export OPENAI_API_KEY="your-api-key"
 python eval_nosearch.py \
  --dataset data/frames.jsonl \
  --out outputs/filename.jsonl \

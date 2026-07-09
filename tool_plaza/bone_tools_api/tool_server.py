@@ -105,9 +105,11 @@ class ToolRegistry:
                 except Exception as e:
                     logger.error(f" {relation_name}: {e}")
 
-            # MedicalBook
             logger.info("Loading MedicalBook...")
-            self.register_tool(MedicalBookTool())
+            try:
+                self.register_tool(MedicalBookTool())
+            except FileNotFoundError as e:
+                logger.warning(f"MedicalBook data is not included in this public release: {e}")
 
             # Semantic Scholar
             logger.info("Semantic Scholar...")
