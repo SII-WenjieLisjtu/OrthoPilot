@@ -23,7 +23,7 @@ Excluded from this release:
 - model weights, checkpoints, LoRA adapters and retrieval indexes;
 - private hospital services, credentials, API keys and deployment endpoints;
 - manuscript analysis scripts and plotting code;
-- figure generation, table export, reader-study case selection, benchmark data construction, calibration scripts and paper-result artifact builders;
+- figure generation, table export, reader-study case selection, benchmark data construction and calibration scripts;
 - large generated outputs, caches and logs.
 
 ## Repository contents
